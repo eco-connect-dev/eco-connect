@@ -50,6 +50,7 @@ export default function ResidentSignupScreen() {
     }
 
     if (data.session) {
+      // @ts-ignore
       router.replace("/(tabs)");
       return;
     }
