@@ -1,16 +1,18 @@
+import { Image } from "expo-image";
 import { Link, router } from "expo-router";
 import { useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
+import { AuthButton } from "@/components/ui/AuthButton";
+import { AuthTextField } from "@/components/ui/AuthTextField";
+import { Colors } from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginScreen() {
@@ -41,121 +43,212 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace("/(tabs)");
+    router.replace("/(tabs)/home");
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.screen}
-    >
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>Login with your Supabase account.</Text>
+      <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.screen}
+      >
+        {/* Decorative background blobs, mirrors Figma */}
+        <View style={styles.blobTop} pointerEvents="none" />
+        <View style={styles.blobBottom} pointerEvents="none" />
 
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          onChangeText={setEmail}
-          placeholder="you@example.com"
-          style={styles.input}
-          value={email}
-        />
-
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          autoCapitalize="none"
-          onChangeText={setPassword}
-          placeholder="Your password"
-          secureTextEntry
-          style={styles.input}
-          value={password}
-        />
-
-        {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-
-        <Pressable
-          disabled={submitting}
-          onPress={handleLogin}
-          style={[styles.button, submitting && styles.buttonDisabled]}
+        <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
         >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Login</Text>
-          )}
-        </Pressable>
+          {/* Logo & header */}
+          <View style={styles.logoWrap}>
+            <Image
+                source={require("@/assets/images/logo.png")}
+                style={styles.logo}
+                contentFit="contain"
+            />
+            <Text style={styles.title}>EcoConnect</Text>
+            <Text style={styles.tagline}>Cleaner City, Together</Text>
+          </View>
 
-        <Link href="./onboarding/resident-signup" style={styles.link}>
-          Create an account
-        </Link>
-      </View>
-    </KeyboardAvoidingView>
+          {/* Illustration */}
+          <View style={styles.illustrationWrap}>
+            <Image
+                source={require("@/assets/images/login-illustration.png")}
+                style={styles.illustration}
+                contentFit="cover"
+            />
+          </View>
+
+          {/* Login card */}
+          <View style={styles.card}>
+            <View style={styles.cardAccentBar} />
+
+            <View style={styles.form}>
+              <AuthTextField
+                  icon="mail-outline"
+                  placeholder="Email or Phone Number"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
+              />
+              <AuthTextField
+                  icon="lock-closed-outline"
+                  placeholder="Password"
+                  autoCapitalize="none"
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+              />
+
+              {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+
+              <AuthButton
+                  label="Get Started"
+                  icon="arrow-forward"
+                  loading={submitting}
+                  onPress={handleLogin}
+              />
+            </View>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.altActions}>
+              <Link href="./onboarding/resident-signup" asChild>
+                <AuthButton
+                    label="Join as Resident"
+                    icon="people-outline"
+                    iconPosition="left"
+                    variant="secondary"
+                    tintColor={Colors.forestGreen}
+                />
+              </Link>
+              <Link href="./onboarding/staff-login" asChild>
+                <AuthButton
+                    label="Staff Login"
+                    icon="briefcase-outline"
+                    iconPosition="left"
+                    variant="secondary"
+                    style={{ marginTop: 12 }}
+                />
+              </Link>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f5f8f6",
-    justifyContent: "center",
-    padding: 20,
+    backgroundColor: Colors.background,
   },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 20,
-    gap: 10,
+  blobTop: {
+    position: "absolute",
+    top: -80,
+    right: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 9999,
+    backgroundColor: Colors.blobGreen,
+  },
+  blobBottom: {
+    position: "absolute",
+    bottom: -100,
+    left: -80,
+    width: 240,
+    height: 240,
+    borderRadius: 9999,
+    backgroundColor: Colors.blobCoral,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 32,
+    alignItems: "center",
+  },
+  logoWrap: {
+    alignItems: "center",
+  },
+  logo: {
+    width: 96,
+    height: 96,
+    borderRadius: 20,
   },
   title: {
+    marginTop: 16,
     fontSize: 24,
     fontWeight: "700",
-    color: "#1b2a1d",
+    letterSpacing: -0.6,
+    color: Colors.textPrimary,
   },
-  subtitle: {
-    fontSize: 14,
-    color: "#5f6e61",
-    marginBottom: 8,
+  tagline: {
+    marginTop: 4,
+    fontSize: 18,
+    color: Colors.textSecondary,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#2e3f30",
+  illustrationWrap: {
+    width: "100%",
+    maxWidth: 280,
+    marginTop: 32,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d5ded6",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    backgroundColor: "#fff",
+  illustration: {
+    width: "100%",
+    aspectRatio: 4 / 3,
+    borderRadius: 16,
+    backgroundColor: Colors.divider,
   },
-  button: {
-    marginTop: 8,
-    backgroundColor: "#0d631b",
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
+  card: {
+    width: "100%",
+    marginTop: 32,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#37474F",
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  cardAccentBar: {
+    height: 4,
+    backgroundColor: Colors.forestGreen,
   },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+  form: {
+    padding: 24,
+    gap: 12,
   },
   error: {
-    color: "#b00020",
+    color: Colors.error,
+    fontSize: 13,
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 24,
     marginTop: 4,
   },
-  link: {
-    marginTop: 6,
-    color: "#0d631b",
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.divider,
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 12,
     fontWeight: "600",
+    letterSpacing: 0.6,
+    color: Colors.textSecondary,
+  },
+  altActions: {
+    padding: 24,
+    paddingTop: 16,
   },
 });

@@ -4,7 +4,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>EcoConnect Home</Text>
-      <Text style={styles.text}>You are authenticated with Supabase.</Text>
+      <Text style={styles.text}>ME TIKA HADAPAN..</Text>
     </View>
   );
 }
