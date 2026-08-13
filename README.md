@@ -9,8 +9,35 @@ Eco Connect is a React Native app built with Expo for mobile-first community and
 
 ## Project Structure
 
-- `app/` — Expo React Native application
-- `supabase/` — Supabase local project config, database artifacts, and Edge Functions
+```text
+.
+├── app/                 Expo React Native application
+│   ├── app/
+│   │   ├── index.tsx
+│   │   ├── +html.tsx
+│   │   ├── +not-found.tsx
+│   │   ├── _layout.tsx
+│   │   ├── (auth)/
+│   │   │   ├── _layout.tsx
+│   │   │   ├── login.tsx
+│   │   │   └── onboarding/
+│   │   │       ├── resident-signup.tsx
+│   │   │       ├── staff-login.tsx
+│   │   │       └── verify.tsx
+│   │   └── (tabs)/
+│   │       ├── _layout.tsx
+│   │       ├── home.tsx
+│   │       ├── profile.tsx
+│   │       └── report.tsx
+│   ├── components/
+│   │   └── useColorScheme.ts
+│   ├── constants/
+│   │   └── Colors.ts
+│   ├── lib/
+│   │   └── supabase.ts
+│   └── expo-env.d.ts
+└── supabase/            Supabase local project config, database artifacts, and Edge Functions
+```
 
 ## Local Development Setup
 

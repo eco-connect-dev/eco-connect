@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "Eco-Connect",
+    "slug": "Eco-Connect",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "app",
+    "icon": "./assets/images/logo.png",
+    "scheme": "Eco-Connect",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
