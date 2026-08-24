@@ -17,4 +17,20 @@ export const Colors = {
   // Decorative blobs (Login/Onboarding background)
   blobGreen: "rgba(46,125,50,0.1)",
   blobCoral: "rgba(183,78,0,0.05)",
+
+  //Home Screen
+  homeBackground: "#F9F9FD",
+  cardTextPrimary: "#1A1C1F",
+  cardTextSecondary: "#41493E",
+  cardTextMuted: "rgba(65,73,62,0.7)",
+  pickupGradientStart: "#1B5E20",
+  pickupGradientEnd: "#00450D",
+  pickupBadgeBg: "rgba(249,249,253,0.2)",
+  pickupBadgeBorder: "rgba(249,249,253,0.1)",
+  quickActionGreenBg: "rgba(172,244,164,0.2)",
+  quickActionCoralBg: "rgba(255,218,214,0.2)",
+  noticeIconGreenBg: "rgba(156,244,156,0.3)",
+  noticeIconCoralBg: "rgba(152,41,0,0.3)",
+  navActivePill: "#9CF49C",
+  navActiveText: "#19722B",
 };
