@@ -17,16 +17,4 @@ export const Colors = {
   // Decorative blobs (Login/Onboarding background)
   blobGreen: "rgba(46,125,50,0.1)",
   blobCoral: "rgba(183,78,0,0.05)",
-
-  //Council view - neutral chips
-  chipBackground: "#F1F3F4",
-  chipBorder: "#DCE1E3",
-
-  //council view - status pills
-  statusPendingBg: "#E7F5EA",
-  statusPendingText: "#0D631B",
-  statusReviewBg: "#EEF1F2",
-  statusReviewText: "#506169",
-  statusAssignedBg: "#FDEDE8",
-  statusAssignedText: "#B34A32",
 };
