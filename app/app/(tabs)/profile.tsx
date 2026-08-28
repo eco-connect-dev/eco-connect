@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -85,8 +84,8 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-back" size={22} color={Colors.cardTextSecondary} />
           </Pressable>
           <Text style={styles.headerTitle}>My Profile</Text>
-          <Pressable accessibilityLabel="Notifications" hitSlop={8} style={styles.headerButton}>
-            <Ionicons name="notifications-outline" size={18} color={Colors.cardTextSecondary} />
+          <Pressable accessibilityLabel={isEditing ? "Save profile" : "Edit profile"} hitSlop={8} onPress={handleEditProfile} style={styles.headerButton}>
+            <Ionicons name={isEditing ? "checkmark" : "pencil-outline"} size={18} color={Colors.cardTextSecondary} />
           </Pressable>
         </View>
       </View>
@@ -135,12 +134,6 @@ export default function ProfileScreen() {
             <ActivityStat count={String(user.pickupRequests)} label="Pickup Requests" style={styles.pickupStat} />
           </View>
         </View>
-
-        <Pressable accessibilityRole="button" onPress={handleEditProfile} style={styles.editButton}>
-          <LinearGradient colors={["#5BB866", "#176D25"]} end={{ x: 1, y: 0.5 }} start={{ x: 0, y: 0.5 }} style={styles.editGradient}>
-            <Text style={styles.editText}>{isEditing ? "Save Profile" : "Edit Profile"}</Text>
-          </LinearGradient>
-        </Pressable>
 
         <Pressable accessibilityRole="button" disabled={signingOut} onPress={handleSignOut} style={[styles.signOutButton, signingOut && styles.buttonDisabled]}>
           {signingOut ? <ActivityIndicator color={Colors.cardTextSecondary} /> : <Text style={styles.signOutText}>Sign Out</Text>}
@@ -198,9 +191,6 @@ const styles = StyleSheet.create({
   pickupStat: { backgroundColor: "#EAFBF3", borderColor: "#D2EFE2" },
   statCount: { color: "#075819", fontSize: 26, fontWeight: "700", lineHeight: 29 },
   statLabel: { color: Colors.cardTextSecondary, fontSize: 11, fontWeight: "600", marginTop: 5 },
-  editButton: { borderRadius: 12, overflow: "hidden" },
-  editGradient: { alignItems: "center", justifyContent: "center", minHeight: 46 },
-  editText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
   signOutButton: { alignItems: "center", backgroundColor: Colors.surface, borderColor: "#ECEBEC", borderRadius: 12, borderWidth: 1, justifyContent: "center", minHeight: 45 },
   signOutText: { color: Colors.cardTextSecondary, fontSize: 15, fontWeight: "700" },
   buttonDisabled: { opacity: 0.7 },
