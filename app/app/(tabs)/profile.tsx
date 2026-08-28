@@ -35,11 +35,11 @@ export default function ProfileScreen() {
       <View style={[styles.header, { paddingTop: insets.top + HEADER_EXTRA_PADDING }]}>
         <View style={styles.headerRow}>
           <Pressable accessibilityLabel="Go back" hitSlop={8} onPress={handleBack} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={22} color={Colors.cardTextPrimary} />
+            <Ionicons name="chevron-back" size={22} color={Colors.cardTextSecondary} />
           </Pressable>
           <Text style={styles.headerTitle}>My Profile</Text>
           <Pressable accessibilityLabel="Notifications" hitSlop={8} style={styles.headerButton}>
-            <Ionicons name="notifications-outline" size={18} color={Colors.cardTextPrimary} />
+            <Ionicons name="notifications-outline" size={18} color={Colors.cardTextSecondary} />
           </Pressable>
         </View>
       </View>
@@ -87,7 +87,7 @@ export default function ProfileScreen() {
         </Pressable>
 
         <Pressable accessibilityRole="button" disabled={signingOut} onPress={handleSignOut} style={[styles.signOutButton, signingOut && styles.buttonDisabled]}>
-          {signingOut ? <ActivityIndicator color={Colors.cardTextPrimary} /> : <Text style={styles.signOutText}>Sign Out</Text>}
+          {signingOut ? <ActivityIndicator color={Colors.cardTextSecondary} /> : <Text style={styles.signOutText}>Sign Out</Text>}
         </Pressable>
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
       </ScrollView>
@@ -112,12 +112,12 @@ const styles = StyleSheet.create({
   header: { backgroundColor: Colors.homeBackground, borderBottomColor: "#E7E7EC", borderBottomWidth: StyleSheet.hairlineWidth },
   headerRow: { alignItems: "center", flexDirection: "row", height: 41, justifyContent: "space-between", paddingHorizontal: 20 },
   headerButton: { alignItems: "center", backgroundColor: Colors.surface, borderColor: "#ECEBEC", borderRadius: 8, borderWidth: 1, height: 34, justifyContent: "center", width: 34 },
-  headerTitle: { color: Colors.cardTextPrimary, fontSize: 22, fontWeight: "700", letterSpacing: -0.5 },
+  headerTitle: { color: Colors.cardTextSecondary, fontSize: 22, fontWeight: "700", letterSpacing: -0.5 },
   content: { gap: 21, padding: 20, paddingBottom: 20 },
   identityCard: { alignItems: "center", backgroundColor: Colors.surface, borderColor: "#F0EFF0", borderRadius: 16, borderWidth: 1, minHeight: 185, paddingBottom: 18, paddingTop: 19 },
   avatarBorder: { borderColor: "#075819", borderRadius: 43, borderWidth: 2, height: 85, overflow: "hidden", width: 85 },
   avatar: { height: "100%", width: "100%" },
-  name: { color: Colors.cardTextPrimary, fontSize: 21, fontWeight: "700", letterSpacing: -0.5, marginTop: 14 },
+  name: { color: Colors.cardTextSecondary, fontSize: 21, fontWeight: "700", letterSpacing: -0.5, marginTop: 14 },
   rolePill: { backgroundColor: "#F0F0F4", borderRadius: 13, marginTop: 5, paddingHorizontal: 11, paddingVertical: 4 },
   roleText: { color: "#075819", fontSize: 12, fontWeight: "700" },
   card: { backgroundColor: Colors.surface, borderColor: "#F0EFF0", borderRadius: 16, borderWidth: 1, padding: 16 },
@@ -126,11 +126,11 @@ const styles = StyleSheet.create({
   iconBox: { alignItems: "center", backgroundColor: "#F0F0F4", borderColor: "#DEDEE4", borderRadius: 8, borderWidth: 1, height: 32, justifyContent: "center", width: 32 },
   contactCopy: { flex: 1, marginLeft: 12 },
   fieldLabel: { color: Colors.cardTextSecondary, fontSize: 11, fontWeight: "500", marginBottom: 2 },
-  fieldValue: { color: Colors.cardTextPrimary, fontSize: 14, fontWeight: "700", letterSpacing: -0.25 },
+  fieldValue: { color: Colors.cardTextSecondary, fontSize: 14, fontWeight: "700", letterSpacing: -0.25 },
   divider: { backgroundColor: "#EAE9EA", height: 1, marginVertical: 12 },
   infoRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   infoLabel: { color: Colors.cardTextSecondary, fontSize: 14, fontWeight: "500" },
-  infoValue: { color: Colors.cardTextPrimary, fontSize: 14, fontWeight: "700", textAlign: "right" },
+  infoValue: { color: Colors.cardTextSecondary, fontSize: 14, fontWeight: "700", textAlign: "right" },
   locationValue: { fontSize: 13, maxWidth: "62%" },
   activityRow: { flexDirection: "row", gap: 10 },
   activityStat: { alignItems: "center", borderRadius: 12, borderWidth: 1, flex: 1, paddingVertical: 13 },
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   editGradient: { alignItems: "center", justifyContent: "center", minHeight: 46 },
   editText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
   signOutButton: { alignItems: "center", backgroundColor: Colors.surface, borderColor: "#ECEBEC", borderRadius: 12, borderWidth: 1, justifyContent: "center", minHeight: 45 },
-  signOutText: { color: Colors.cardTextPrimary, fontSize: 15, fontWeight: "700" },
+  signOutText: { color: Colors.cardTextSecondary, fontSize: 15, fontWeight: "700" },
   buttonDisabled: { opacity: 0.7 },
   error: { color: Colors.error, fontSize: 14, textAlign: "center" },
 });
