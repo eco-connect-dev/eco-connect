@@ -28,15 +28,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="council-view"
-        options={{
-          title: "Council View",
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="document-outline" size={22} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
