@@ -48,7 +48,7 @@ export default function CouncilDashboardScreen() {
                 <Text style={styles.headerTitle}>Pending Items</Text>
                 <Pressable
                     style={styles.profileButton}
-                    onPress={() => router.push("/(tabs)/profile")}
+                    onPress={() => router.push("/council-profile")}
                 >
                     <Ionicons name="person-outline" size={16} color={Colors.councilHeaderText} />
                     <Text style={styles.profileText}>Profile</Text>
