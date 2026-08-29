@@ -54,4 +54,14 @@ export const Colors = {
   statusAssignedBg: "#E3F2FD",
   statusAssignedBorder: "#BBDEFB",
   statusAssignedText: "#2563EB",
+
+  // council profile
+  profileBackground: "#F3F3F4",
+  profileCardBg: "#FFFFFF",
+  profileIconBg: "#F3F4F6",
+  summaryCardBg: "#FAFAFA",
+  roleBadgeBg: "#F3F4F6",
+  roleBadgeBorder: "#9CA3AF",
+  editProfileBg: "#111827",
+  signOutBorder: "#9CA3AF",
 };
