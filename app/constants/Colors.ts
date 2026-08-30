@@ -1,4 +1,3 @@
-
 export const Colors = {
   // Brand
   forestGreen: "#0D631B",
@@ -64,4 +63,34 @@ export const Colors = {
   roleBadgeBorder: "#9CA3AF",
   editProfileBg: "#111827",
   signOutBorder: "#9CA3AF",
+
+  // Admin Dashboard
+  adminHeaderIconBg: "#00450D",
+  adminFabBg: "#FF6D3F",
+
+  adminStatIconBgComplaints: "#FFDAD6",
+  adminStatIconColorComplaints: "#BA1A1A",
+  adminStatOverlayComplaints: "rgba(186,26,26,0.05)",
+
+  adminStatIconBgRoutes: "#1B5E20",
+  adminStatIconColorRoutes: "#FFFFFF",
+  adminStatOverlayRoutes: "rgba(0,69,13,0.05)",
+
+  adminStatIconBgTons: "#982900",
+  adminStatIconColorTons: "#FFFFFF",
+  adminStatOverlayTons: "rgba(112,28,0,0.05)",
+
+  adminTrendNegative: "#BA1A1A",
+  adminTrendPositive: "#126D27",
+
+  adminPriorityHighBg: "#FFDAD6",
+  adminPriorityHighText: "#93000A",
+  adminPriorityHighAccent: "#BA1A1A",
+
+  adminPriorityMediumBg: "#982900",
+  adminPriorityMediumText: "#FFB29C",
+  adminPriorityMediumAccent: "#701C00",
+
+  adminAssignGradientStart: "#66BB6A",
+  adminAssignGradientEnd: "#1B5E20",
 };

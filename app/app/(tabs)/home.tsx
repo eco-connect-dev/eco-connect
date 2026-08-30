@@ -1,13 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoticeCard } from "@/components/resident/NoticeCard";
@@ -23,7 +17,12 @@ export default function ResidentHomeScreen() {
   return (
     <View style={styles.screen}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + HEADER_EXTRA_PADDING }]}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + HEADER_EXTRA_PADDING },
+        ]}
+      >
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <Image

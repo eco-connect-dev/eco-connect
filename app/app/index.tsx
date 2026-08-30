@@ -34,7 +34,7 @@ export default function IndexScreen() {
         if (mounted) {
           setSession(nextSession);
         }
-      }
+      },
     );
 
     return () => {

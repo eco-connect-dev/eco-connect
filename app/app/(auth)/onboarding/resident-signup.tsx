@@ -58,97 +58,99 @@ export default function ResidentSignupScreen() {
     }
 
     setSuccessMessage(
-        "Registration successful. Check your email to verify your account."
+      "Registration successful. Check your email to verify your account.",
     );
   };
 
   return (
-      <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={styles.screen}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.screen}
+    >
+      <View style={styles.blobTop} pointerEvents="none" />
+      <View style={styles.blobBottom} pointerEvents="none" />
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.blobTop} pointerEvents="none" />
-        <View style={styles.blobBottom} pointerEvents="none" />
+        {/* Header — smaller than login since this is a secondary screen */}
+        <View style={styles.headerWrap}>
+          <Image
+            source={require("@/assets/images/logo.png")}
+            style={styles.logo}
+            contentFit="contain"
+          />
+          <Text style={styles.title}>Join EcoConnect</Text>
+          <Text style={styles.subtitle}>
+            Create a resident account to request pickups, track trucks, and stay
+            in the loop with your council.
+          </Text>
+        </View>
 
-        <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-        >
-          {/* Header — smaller than login since this is a secondary screen */}
-          <View style={styles.headerWrap}>
-            <Image
-                source={require("@/assets/images/logo.png")}
-                style={styles.logo}
-                contentFit="contain"
-            />
-            <Text style={styles.title}>Join EcoConnect</Text>
-            <Text style={styles.subtitle}>
-              Create a resident account to request pickups, track trucks, and
-              stay in the loop with your council.
-            </Text>
-          </View>
+        {/* Signup card */}
+        <View style={styles.card}>
+          <View style={styles.cardAccentBar} />
 
-          {/* Signup card */}
-          <View style={styles.card}>
-            <View style={styles.cardAccentBar} />
-
-            <View style={styles.form}>
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Full name</Text>
-                <AuthTextField
-                    icon="person-outline"
-                    placeholder="Jane Doe"
-                    autoCapitalize="words"
-                    value={fullName}
-                    onChangeText={setFullName}
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Email</Text>
-                <AuthTextField
-                    icon="mail-outline"
-                    placeholder="you@example.com"
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    keyboardType="email-address"
-                    value={email}
-                    onChangeText={setEmail}
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Password</Text>
-                <AuthTextField
-                    icon="lock-closed-outline"
-                    placeholder="Minimum 6 characters"
-                    autoCapitalize="none"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                />
-              </View>
-
-              {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-              {successMessage ? (
-                  <Text style={styles.success}>{successMessage}</Text>
-              ) : null}
-
-              <AuthButton
-                  label="Register"
-                  icon="arrow-forward"
-                  loading={submitting}
-                  onPress={handleRegister}
-                  style={{ marginTop: 4 }}
+          <View style={styles.form}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Full name</Text>
+              <AuthTextField
+                icon="person-outline"
+                placeholder="Jane Doe"
+                autoCapitalize="words"
+                value={fullName}
+                onChangeText={setFullName}
               />
             </View>
-          </View>
 
-          <Link href="../login" style={styles.link}>
-            Already have an account? Login
-          </Link>
-        </ScrollView>
-      </KeyboardAvoidingView>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Email</Text>
+              <AuthTextField
+                icon="mail-outline"
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Password</Text>
+              <AuthTextField
+                icon="lock-closed-outline"
+                placeholder="Minimum 6 characters"
+                autoCapitalize="none"
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+            </View>
+
+            {errorMessage ? (
+              <Text style={styles.error}>{errorMessage}</Text>
+            ) : null}
+            {successMessage ? (
+              <Text style={styles.success}>{successMessage}</Text>
+            ) : null}
+
+            <AuthButton
+              label="Register"
+              icon="arrow-forward"
+              loading={submitting}
+              onPress={handleRegister}
+              style={{ marginTop: 4 }}
+            />
+          </View>
+        </View>
+
+        <Link href="../login" style={styles.link}>
+          Already have an account? Login
+        </Link>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
