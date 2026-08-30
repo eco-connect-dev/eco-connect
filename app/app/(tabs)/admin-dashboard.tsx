@@ -3,8 +3,8 @@ import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ComplaintCard } from "@/components/admin/ComplaintCard";
-import { StatCard } from "@/components/admin/StatCard";
+import { ComplaintCard } from "@/components/admin/Complaintcard";
+import { StatCard } from "@/components/admin/Statcard";
 import { Colors } from "@/constants/Colors";
 
 const HEADER_EXTRA_PADDING = 8;
