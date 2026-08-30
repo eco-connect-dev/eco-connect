@@ -39,7 +39,11 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} size={22} color={color} />
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              size={22}
+              color={color}
+            />
           ),
         }}
       />
@@ -61,7 +65,11 @@ export default function TabLayout() {
         options={{
           title: "Track",
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "map" : "map-outline"} size={22} color={color} />
+            <Ionicons
+              name={focused ? "map" : "map-outline"}
+              size={22}
+              color={color}
+            />
           ),
         }}
       />
@@ -70,7 +78,11 @@ export default function TabLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "person" : "person-outline"} size={22} color={color} />
+            <Ionicons
+              name={focused ? "person" : "person-outline"}
+              size={22}
+              color={color}
+            />
           ),
         }}
       />

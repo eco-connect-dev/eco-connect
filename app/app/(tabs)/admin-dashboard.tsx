@@ -1,12 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ComplaintCard } from "@/components/admin/ComplaintCard";
@@ -49,7 +43,12 @@ export default function AdminDashboardScreen() {
   return (
     <View style={styles.screen}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + HEADER_EXTRA_PADDING }]}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + HEADER_EXTRA_PADDING },
+        ]}
+      >
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Admin Dash</Text>
 
@@ -63,7 +62,10 @@ export default function AdminDashboardScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 96 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 96 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Overview */}
@@ -71,7 +73,11 @@ export default function AdminDashboardScreen() {
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Overview</Text>
             <View style={styles.todayRow}>
-              <Ionicons name="calendar-outline" size={12} color={Colors.cardTextSecondary} />
+              <Ionicons
+                name="calendar-outline"
+                size={12}
+                color={Colors.cardTextSecondary}
+              />
               <Text style={styles.todayText}>Today</Text>
             </View>
           </View>

@@ -41,7 +41,9 @@ export function StatCard({
 
       <View style={styles.trendRow}>
         <Ionicons name={trendIcon} size={13} color={trendColor} />
-        <Text style={[styles.trendText, { color: trendColor }]}>{trendText}</Text>
+        <Text style={[styles.trendText, { color: trendColor }]}>
+          {trendText}
+        </Text>
       </View>
     </View>
   );

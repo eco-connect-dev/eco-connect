@@ -17,7 +17,13 @@ type ComplaintCardProps = {
 
 const PRIORITY_STYLES: Record<
   Priority,
-  { badgeBg: string; badgeText: string; accent: string; icon: keyof typeof Ionicons.glyphMap; label: string }
+  {
+    badgeBg: string;
+    badgeText: string;
+    accent: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+  }
 > = {
   high: {
     badgeBg: Colors.adminPriorityHighBg,
@@ -47,13 +53,23 @@ export function ComplaintCard({
 
   return (
     <View style={styles.card}>
-      <View style={[styles.accent, { backgroundColor: priorityStyle.accent }]} />
+      <View
+        style={[styles.accent, { backgroundColor: priorityStyle.accent }]}
+      />
 
       <View style={styles.topRow}>
         <View style={styles.topLeft}>
-          <View style={[styles.badge, { backgroundColor: priorityStyle.badgeBg }]}>
-            <Ionicons name={priorityStyle.icon} size={11} color={priorityStyle.badgeText} />
-            <Text style={[styles.badgeText, { color: priorityStyle.badgeText }]}>
+          <View
+            style={[styles.badge, { backgroundColor: priorityStyle.badgeBg }]}
+          >
+            <Ionicons
+              name={priorityStyle.icon}
+              size={11}
+              color={priorityStyle.badgeText}
+            />
+            <Text
+              style={[styles.badgeText, { color: priorityStyle.badgeText }]}
+            >
               {priorityStyle.label}
             </Text>
           </View>
@@ -61,7 +77,11 @@ export function ComplaintCard({
           <Text style={styles.title}>{title}</Text>
 
           <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={13} color={Colors.cardTextSecondary} />
+            <Ionicons
+              name="location-outline"
+              size={13}
+              color={Colors.cardTextSecondary}
+            />
             <Text style={styles.locationText}>{location}</Text>
           </View>
         </View>
@@ -80,7 +100,10 @@ export function ComplaintCard({
 
         <Pressable onPress={onAssign} style={styles.assignButtonWrapper}>
           <LinearGradient
-            colors={[Colors.adminAssignGradientStart, Colors.adminAssignGradientEnd]}
+            colors={[
+              Colors.adminAssignGradientStart,
+              Colors.adminAssignGradientEnd,
+            ]}
             style={styles.assignButton}
           >
             <Text style={styles.assignText}>Assign</Text>

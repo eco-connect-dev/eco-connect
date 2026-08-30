@@ -47,100 +47,102 @@ export default function LoginScreen() {
   };
 
   return (
-      <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={styles.screen}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.screen}
+    >
+      {/* Decorative background blobs, mirrors Figma */}
+      <View style={styles.blobTop} pointerEvents="none" />
+      <View style={styles.blobBottom} pointerEvents="none" />
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Decorative background blobs, mirrors Figma */}
-        <View style={styles.blobTop} pointerEvents="none" />
-        <View style={styles.blobBottom} pointerEvents="none" />
+        {/* Logo & header */}
+        <View style={styles.logoWrap}>
+          <Image
+            source={require("@/assets/images/logo.png")}
+            style={styles.logo}
+            contentFit="contain"
+          />
+          <Text style={styles.title}>EcoConnect</Text>
+          <Text style={styles.tagline}>Cleaner City, Together</Text>
+        </View>
 
-        <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-        >
-          {/* Logo & header */}
-          <View style={styles.logoWrap}>
-            <Image
-                source={require("@/assets/images/logo.png")}
-                style={styles.logo}
-                contentFit="contain"
+        {/* Illustration */}
+        <View style={styles.illustrationWrap}>
+          <Image
+            source={require("@/assets/images/login-illustration.png")}
+            style={styles.illustration}
+            contentFit="cover"
+          />
+        </View>
+
+        {/* Login card */}
+        <View style={styles.card}>
+          <View style={styles.cardAccentBar} />
+
+          <View style={styles.form}>
+            <AuthTextField
+              icon="mail-outline"
+              placeholder="Email or Phone Number"
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
             />
-            <Text style={styles.title}>EcoConnect</Text>
-            <Text style={styles.tagline}>Cleaner City, Together</Text>
+            <AuthTextField
+              icon="lock-closed-outline"
+              placeholder="Password"
+              autoCapitalize="none"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+
+            {errorMessage ? (
+              <Text style={styles.error}>{errorMessage}</Text>
+            ) : null}
+
+            <AuthButton
+              label="Get Started"
+              icon="arrow-forward"
+              loading={submitting}
+              onPress={handleLogin}
+            />
           </View>
 
-          {/* Illustration */}
-          <View style={styles.illustrationWrap}>
-            <Image
-                source={require("@/assets/images/login-illustration.png")}
-                style={styles.illustration}
-                contentFit="cover"
-            />
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
           </View>
 
-          {/* Login card */}
-          <View style={styles.card}>
-            <View style={styles.cardAccentBar} />
-
-            <View style={styles.form}>
-              <AuthTextField
-                  icon="mail-outline"
-                  placeholder="Email or Phone Number"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  keyboardType="email-address"
-                  value={email}
-                  onChangeText={setEmail}
-              />
-              <AuthTextField
-                  icon="lock-closed-outline"
-                  placeholder="Password"
-                  autoCapitalize="none"
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-              />
-
-              {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-
+          <View style={styles.altActions}>
+            <Link href="./onboarding/resident-signup" asChild>
               <AuthButton
-                  label="Get Started"
-                  icon="arrow-forward"
-                  loading={submitting}
-                  onPress={handleLogin}
+                label="Join as Resident"
+                icon="people-outline"
+                iconPosition="left"
+                variant="secondary"
+                tintColor={Colors.forestGreen}
               />
-            </View>
-
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <View style={styles.altActions}>
-              <Link href="./onboarding/resident-signup" asChild>
-                <AuthButton
-                    label="Join as Resident"
-                    icon="people-outline"
-                    iconPosition="left"
-                    variant="secondary"
-                    tintColor={Colors.forestGreen}
-                />
-              </Link>
-              <Link href="./onboarding/staff-login" asChild>
-                <AuthButton
-                    label="Staff Login"
-                    icon="briefcase-outline"
-                    iconPosition="left"
-                    variant="secondary"
-                    style={{ marginTop: 12 }}
-                />
-              </Link>
-            </View>
+            </Link>
+            <Link href="./onboarding/staff-login" asChild>
+              <AuthButton
+                label="Staff Login"
+                icon="briefcase-outline"
+                iconPosition="left"
+                variant="secondary"
+                style={{ marginTop: 12 }}
+              />
+            </Link>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
