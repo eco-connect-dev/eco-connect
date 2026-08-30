@@ -26,14 +26,14 @@ type UserProfile = {
 const USER_PROFILES: UserProfile[] = [
   {
     id: "resident-001",
-    name: "Sarath Perera",
-    email: "sarath.perera@gmail.com",
+    name: "Moditha Marasinghe",
+    email: "moditha2003@gmail.com",
     phone: "+94 71 4467 990",
-    location: "16, Flower Lane, Borella",
-    memberSince: "Jan 2023",
+    location: "No 16, Kothalawala, Kaduwela",
+    memberSince: "June 2026",
     role: "RESIDENT",
-    reportedIssues: 23,
-    pickupRequests: 12,
+    reportedIssues: 24,
+    pickupRequests: 20,
     avatarUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=320&q=90",
   },
 ];

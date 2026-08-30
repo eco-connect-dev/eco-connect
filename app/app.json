@@ -33,6 +33,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Eco-Connect to access your photos so you can attach them to a pickup request."
+        }
       ]
     ],
     "experiments": {
