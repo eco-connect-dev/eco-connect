@@ -33,4 +33,35 @@ export const Colors = {
   noticeIconCoralBg: "rgba(152,41,0,0.3)",
   navActivePill: "#9CF49C",
   navActiveText: "#19722B",
+
+  //council dashboard
+  councilBorder: "#E5E7EB",
+  councilHeaderText: "#1C1C2E",
+  councilTextPrimary: "#111827",
+  councilTextSecondary: "#4B5563",
+  councilTextMuted: "#9CA3AF",
+  councilTabInactiveBg: "#EEEEEF",
+  councilIconCircleBg: "#F8F9FA",
+
+  statusPendingBg: "#E8F5E9",
+  statusPendingBorder: "#C8E6C9",
+  statusPendingText: "#1B5E20",
+
+  statusReviewBg: "#FFF3E0",
+  statusReviewBorder: "#FFE0B2",
+  statusReviewText: "#D97706",
+
+  statusAssignedBg: "#E3F2FD",
+  statusAssignedBorder: "#BBDEFB",
+  statusAssignedText: "#2563EB",
+
+  // council profile
+  profileBackground: "#F3F3F4",
+  profileCardBg: "#FFFFFF",
+  profileIconBg: "#F3F4F6",
+  summaryCardBg: "#FAFAFA",
+  roleBadgeBg: "#F3F4F6",
+  roleBadgeBorder: "#9CA3AF",
+  editProfileBg: "#111827",
+  signOutBorder: "#9CA3AF",
 };
