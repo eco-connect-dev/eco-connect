@@ -1,12 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Colors } from "@/constants/Colors";
 
-export type ItemStatus = "pending" | "under_review" | "assigned";
+export type ItemStatus = "pending" | "under_review" | "assigned" | "rejected" | "completed";
 
-const STATUS_CONFIG: Record<
-  ItemStatus,
-  { label: string; bg: string; border: string; text: string }
-> = {
+const STATUS_CONFIG: Record<ItemStatus, { label: string; bg: string; border: string; text: string }> = {
   pending: {
     label: "Pending",
     bg: Colors.statusPendingBg,
@@ -25,6 +22,18 @@ const STATUS_CONFIG: Record<
     border: Colors.statusAssignedBorder,
     text: Colors.statusAssignedText,
   },
+  rejected: {
+    label: "Rejected",
+    bg: Colors.statusRejectedBg,
+    border: Colors.statusRejectedBorder,
+    text: Colors.statusRejectedText,
+  },
+  completed: {
+    label: "Completed",
+    bg: Colors.statusCompletedBg,
+    border: Colors.statusCompletedBorder,
+    text: Colors.statusCompletedText,
+  },
 };
 
 interface StatusBadgeProps {
@@ -35,16 +44,16 @@ export function StatusBadge({ status }: StatusBadgeProps) {
   const config = STATUS_CONFIG[status];
 
   return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: config.bg, borderColor: config.border },
-      ]}
-    >
-      <Text style={[styles.label, { color: config.text }]}>
-        {config.label.toUpperCase()}
-      </Text>
-    </View>
+      <View
+          style={[
+            styles.badge,
+            { backgroundColor: config.bg, borderColor: config.border },
+          ]}
+      >
+        <Text style={[styles.label, { color: config.text }]}>
+          {config.label.toUpperCase()}
+        </Text>
+      </View>
   );
 }
 
