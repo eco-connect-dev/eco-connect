@@ -147,13 +147,19 @@ export default function CouncilDashboardScreen() {
         {/* List */}
         <View style={styles.list}>
           {filteredItems.map((item) => (
-            <PendingItemCard
-              key={item.id}
-              item={item}
-              onPress={(pressedItem) =>
-                router.push(`/(tabs)/council-dashboard?id=${pressedItem.id}`)
-              }
-            />
+              <PendingItemCard
+                  key={item.id}
+                  item={item}
+                  onPress={(pressedItem) => {
+                    if (pressedItem.category === "pickup") {
+                      router.push({
+                        pathname: "/item-detail-pickup",
+                        params: { id: pressedItem.id },
+                      });
+                    }
+                    // TODO: dumping items still need their own item-detail-report screen and route
+                  }}
+              />
           ))}
         </View>
 
