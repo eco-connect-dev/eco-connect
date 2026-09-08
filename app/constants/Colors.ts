@@ -64,6 +64,20 @@ export const Colors = {
   editProfileBg: "#111827",
   signOutBorder: "#9CA3AF",
 
+  //item detail
+  detailMapOverlayBg: "rgba(255,255,255,0.9)",
+  detailMapBg: "#DCEEDC",
+  btnPrimaryGradientStart: "#2E7D32",
+  btnPrimaryGradientEnd: "#1B5E20",
+
+  statusRejectedBg: "#FEE2E2",
+  statusRejectedBorder: "#FECACA",
+  statusRejectedText: "#B91C1C",
+
+  statusCompletedBg: "#E5E7EB",
+  statusCompletedBorder: "#D1D5DB",
+  statusCompletedText: "#374151",
+
   // Admin Dashboard
   adminHeaderIconBg: "#00450D",
   adminFabBg: "#FF6D3F",
