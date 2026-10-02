@@ -41,6 +41,8 @@ export default function ProfileScreen() {
   const [hasProfile, setHasProfile] = useState(false);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -50,6 +52,7 @@ export default function ProfileScreen() {
     let mounted = true;
 
     async function loadProfile() {
+      setErrorMessage("");
       try {
         const { data, error } = await supabase.auth.getUser();
         if (error) throw error;
@@ -79,12 +82,20 @@ export default function ProfileScreen() {
         setOriginalForm(initialForm);
         setHasProfile(Boolean(profile));
         setEditing(!profile);
+        setLoadFailed(false);
       } catch (error) {
         if (mounted) {
+          const code =
+            typeof error === "object" && error !== null && "code" in error
+              ? String(error.code)
+              : "";
+          setLoadFailed(true);
           setErrorMessage(
-            error instanceof Error
-              ? error.message
-              : "Could not load your profile.",
+            code === "PGRST205" || code === "42P01"
+              ? "Profile storage is missing from Supabase. Apply migration 20261002000000_create_user_profiles.sql, then tap Retry."
+              : error instanceof Error
+                ? error.message
+                : "Could not load your profile. Check your connection and retry.",
           );
         }
       } finally {
@@ -96,7 +107,7 @@ export default function ProfileScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [loadAttempt]);
 
   function setField(field: keyof ProfileForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -142,10 +153,17 @@ export default function ProfileScreen() {
     setErrorMessage("");
     setSuccessMessage("");
     try {
-      if (hasProfile) await updateProfile(userId, profile);
-      else await createProfile(userId, profile);
-      setForm(profile);
-      setOriginalForm(profile);
+      const savedProfile = hasProfile
+        ? await updateProfile(userId, profile)
+        : await createProfile(userId, profile);
+      const savedForm = {
+        full_name: savedProfile.full_name,
+        phone: savedProfile.phone,
+        address_line: savedProfile.address_line,
+        neighborhood: savedProfile.neighborhood,
+      };
+      setForm(savedForm);
+      setOriginalForm(savedForm);
       setHasProfile(true);
       setEditing(false);
       setSuccessMessage("Your profile has been saved.");
@@ -192,18 +210,20 @@ export default function ProfileScreen() {
         {hasProfile && !editing ? (
           <Pressable
             accessibilityLabel="Edit profile"
+            accessibilityRole="button"
             onPress={() => {
               setErrorMessage("");
               setSuccessMessage("");
               setEditing(true);
             }}
-            style={styles.iconButton}
+            style={styles.editButton}
           >
             <Ionicons
               name="pencil-outline"
-              size={18}
+              size={16}
               color={Colors.cardTextSecondary}
             />
+            <Text style={styles.editButtonText}>Edit</Text>
           </Pressable>
         ) : (
           <View style={styles.iconButton} />
@@ -287,6 +307,18 @@ export default function ProfileScreen() {
             <Text accessibilityRole="alert" style={styles.error}>
               {errorMessage}
             </Text>
+          ) : null}
+          {loadFailed ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setLoading(true);
+                setLoadAttempt((attempt) => attempt + 1);
+              }}
+              style={styles.retryButton}
+            >
+              <Text style={styles.retryText}>Retry profile load</Text>
+            </Pressable>
           ) : null}
           {successMessage ? (
             <Text accessibilityRole="alert" style={styles.success}>
@@ -416,6 +448,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ECEBEC",
   },
+  editButton: {
+    height: 36,
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: "#ECEBEC",
+  },
+  editButtonText: {
+    color: Colors.cardTextSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
   loader: { flex: 1, justifyContent: "center" },
   content: { padding: 20, paddingBottom: 30, gap: 16 },
   intro: { alignItems: "center", paddingVertical: 10 },
@@ -518,6 +567,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   error: { color: Colors.error, fontSize: 13, textAlign: "center" },
+  retryButton: { alignItems: "center", paddingVertical: 8 },
+  retryText: { color: Colors.forestGreen, fontSize: 13, fontWeight: "700" },
   success: {
     color: Colors.forestGreen,
     fontSize: 13,
