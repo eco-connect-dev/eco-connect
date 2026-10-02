@@ -69,7 +69,7 @@ export default function ResidentHomeScreen() {
               label="Report Issue"
               iconBgColor={Colors.quickActionCoralBg}
               iconColor={Colors.coral}
-              onPress={() => router.push("/(tabs)/request")}
+              onPress={() => router.push("/dumping-report")}
             />
           </View>
         </View>

@@ -13,27 +13,35 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
-import { listMyReports, Report, ReportStatus } from "@/lib/reports";
+import {
+  getRequestTitle,
+  listMyRequests,
+  RequestStatus,
+  subscribeToCurrentResidentRequests,
+  removeRequestsSubscription,
+  TrackedRequest,
+} from "@/lib/tracking";
 
-const STATUS_LABELS: Record<ReportStatus, string> = {
-  submitted: "Submitted",
-  under_review: "Under review",
+const STATUS_LABELS: Record<RequestStatus, string> = {
+  pending: "Pending",
+  in_review: "In review",
+  assigned: "Assigned",
   resolved: "Resolved",
 };
 
 export default function TrackScreen() {
   const insets = useSafeAreaInsets();
-  const [reports, setReports] = useState<Report[]>([]);
+  const [requests, setRequests] = useState<TrackedRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const loadReports = useCallback(async (refresh = false) => {
+  const loadRequests = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
     else setLoading(true);
     setError("");
     try {
-      setReports(await listMyReports());
+      setRequests(await listMyRequests());
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Couldn't load reports.",
@@ -46,14 +54,30 @@ export default function TrackScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadReports();
-    }, [loadReports]),
+      let active = true;
+      let channel: Awaited<
+        ReturnType<typeof subscribeToCurrentResidentRequests>
+      > | null = null;
+      void loadRequests();
+      void subscribeToCurrentResidentRequests(() => {
+        void loadRequests(true);
+      })
+        .then((subscription) => {
+          if (active) channel = subscription;
+          else void removeRequestsSubscription(subscription);
+        })
+        .catch(() => undefined);
+      return () => {
+        active = false;
+        if (channel) void removeRequestsSubscription(channel);
+      };
+    }, [loadRequests]),
   );
 
   return (
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.title}>Track Reports</Text>
+        <Text style={styles.title}>Track Requests</Text>
         <Text style={styles.subtitle}>Updates from your local council</Text>
       </View>
       <ScrollView
@@ -61,7 +85,7 @@ export default function TrackScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => void loadReports(true)}
+            onRefresh={() => void loadRequests(true)}
             tintColor={Colors.forestGreen}
           />
         }
@@ -71,37 +95,42 @@ export default function TrackScreen() {
         ) : error ? (
           <View style={styles.emptyCard}>
             <Text style={styles.error}>{error}</Text>
-            <Pressable onPress={() => void loadReports()} style={styles.retry}>
+            <Pressable onPress={() => void loadRequests()} style={styles.retry}>
               <Text style={styles.retryText}>Try again</Text>
             </Pressable>
           </View>
-        ) : reports.length ? (
-          reports.map((report) => (
+        ) : requests.length ? (
+          requests.map((request) => (
             <Pressable
               accessibilityRole="button"
-              key={report.id}
+              key={`${request.source}:${request.id}`}
               onPress={() =>
                 router.push({
-                  pathname: "/report-detail",
-                  params: { id: report.id },
+                  pathname: "/tracking-detail",
+                  params: { id: request.id, source: request.source },
                 })
               }
               style={styles.reportCard}
             >
               <View style={styles.reportTop}>
                 <Text style={styles.reportTitle} numberOfLines={2}>
-                  {report.title}
+                  {getRequestTitle(request)}
                 </Text>
                 <Ionicons name="chevron-forward" size={18} color="#829087" />
               </View>
               <Text style={styles.neighborhood}>
-                {report.neighborhood} ·{" "}
-                {new Date(report.created_at).toLocaleDateString()}
+                {request.location} ·{" "}
+                {new Date(request.submitted_at).toLocaleDateString()}
+              </Text>
+              <Text style={styles.requestType}>
+                {request.source === "pickup_requests"
+                  ? "Pickup request"
+                  : "Illegal dumping report"}
               </Text>
               <View style={styles.statusLine}>
-                <View style={[styles.dot, styles[`dot_${report.status}`]]} />
+                <View style={[styles.dot, styles[`dot_${request.status}`]]} />
                 <Text style={styles.statusText}>
-                  {STATUS_LABELS[report.status]}
+                  {STATUS_LABELS[request.status]}
                 </Text>
               </View>
             </Pressable>
@@ -115,10 +144,10 @@ export default function TrackScreen() {
                 color={Colors.forestGreen}
               />
             </View>
-            <Text style={styles.emptyTitle}>No reports yet</Text>
+            <Text style={styles.emptyTitle}>No requests or reports yet</Text>
             <Text style={styles.emptyText}>
-              Reports you submit will appear here with their latest council
-              status.
+              Your pickup requests and illegal dumping reports will appear here
+              with their latest council status.
             </Text>
           </View>
         )}
@@ -150,6 +179,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   neighborhood: { color: Colors.textSecondary, fontSize: 12 },
+  requestType: { color: Colors.textSecondary, fontSize: 11 },
   statusLine: {
     flexDirection: "row",
     alignItems: "center",
@@ -157,8 +187,9 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  dot_submitted: { backgroundColor: "#D99018" },
-  dot_under_review: { backgroundColor: "#2878C8" },
+  dot_pending: { backgroundColor: "#D99018" },
+  dot_in_review: { backgroundColor: "#2878C8" },
+  dot_assigned: { backgroundColor: "#7A56C2" },
   dot_resolved: { backgroundColor: "#168047" },
   statusText: {
     color: Colors.cardTextSecondary,
