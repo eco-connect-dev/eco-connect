@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -15,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
+import { supabase } from "@/lib/supabase";
 
 const HEADER_EXTRA_PADDING = 8;
 const WASTE_TYPES = [
@@ -36,13 +39,52 @@ export default function RequestScreen() {
   const [locationDraft, setLocationDraft] = useState(location);
   const [pinPosition, setPinPosition] = useState({ x: 51, y: 49 });
   const [mapWidth, setMapWidth] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const handleSubmit = () => {
-    Alert.alert(
-      "Request submitted",
-      `${wasteType} pickup requested for ${location.address}.`,
-    );
-    setNotes("");
+  const handleSubmit = async () => {
+    if (submitting) return;
+
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const { data, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!data.user) {
+        router.replace("/(auth)/login");
+        return;
+      }
+
+      const { error } = await supabase.from("pickup_requests").insert({
+        resident_id: data.user.id,
+        category: wasteType,
+        status: "pending",
+        location: location.address.trim(),
+        notes: notes.trim() || null,
+      });
+      if (error) throw error;
+
+      setNotes("");
+      Alert.alert(
+        "Request submitted",
+        `${wasteType} pickup requested for ${location.address}.`,
+        [
+          { text: "Done", style: "cancel" },
+          {
+            text: "Track request",
+            onPress: () => router.push("/(tabs)/track"),
+          },
+        ],
+      );
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "We couldn't submit your request. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const openLocationPicker = () => {
@@ -191,8 +233,12 @@ export default function RequestScreen() {
 
         <Pressable
           accessibilityRole="button"
-          onPress={handleSubmit}
-          style={styles.submitButton}
+          disabled={submitting}
+          onPress={() => void handleSubmit()}
+          style={[
+            styles.submitButton,
+            submitting && styles.submitButtonDisabled,
+          ]}
         >
           <LinearGradient
             colors={["#278037", "#0D631B"]}
@@ -200,10 +246,21 @@ export default function RequestScreen() {
             start={{ x: 0, y: 0.5 }}
             style={styles.submitGradient}
           >
-            <Ionicons name="send-outline" size={24} color="#FFFFFF" />
-            <Text style={styles.submitText}>Submit Request</Text>
+            {submitting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Ionicons name="send-outline" size={24} color="#FFFFFF" />
+            )}
+            <Text style={styles.submitText}>
+              {submitting ? "Submitting..." : "Submit Request"}
+            </Text>
           </LinearGradient>
         </Pressable>
+        {submitError ? (
+          <Text accessibilityRole="alert" style={styles.submitError}>
+            {submitError}
+          </Text>
+        ) : null}
       </ScrollView>
 
       <Modal
@@ -492,6 +549,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   submitButton: { borderRadius: 28, overflow: "hidden" },
+  submitButtonDisabled: { opacity: 0.7 },
   submitGradient: {
     alignItems: "center",
     flexDirection: "row",
@@ -500,6 +558,7 @@ const styles = StyleSheet.create({
     minHeight: 57,
   },
   submitText: { color: "#FFFFFF", fontSize: 19, fontWeight: "700" },
+  submitError: { color: Colors.error, fontSize: 13, textAlign: "center" },
   modalOverlay: {
     backgroundColor: "rgba(25, 28, 29, 0.4)",
     flex: 1,
