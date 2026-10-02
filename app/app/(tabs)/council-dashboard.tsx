@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -11,6 +11,7 @@ import {
 import { StatCard } from "@/components/council/StatCard";
 import { TabSwitcher } from "@/components/council/TabSwitcher";
 import { Colors } from "@/constants/Colors";
+import { listCouncilReports, Report } from "@/lib/reports";
 
 const HEADER_EXTRA_PADDING = 8;
 const TABS = ["All", "Pickups", "Dumping"] as const;
@@ -73,6 +74,28 @@ const TOTAL_PAGES = 4;
 export default function CouncilDashboardScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("All");
+  const [reports, setReports] = useState<Report[]>([]);
+  const [reportError, setReportError] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void listCouncilReports()
+        .then((items) => {
+          if (active) setReports(items);
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            setReportError(
+              error instanceof Error ? error.message : "Couldn't load reports.",
+            );
+          }
+        });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   const filteredItems = useMemo(() => {
     if (activeTab === "Pickups")
@@ -114,6 +137,44 @@ export default function CouncilDashboardScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.residentReports}>
+          <Text style={styles.residentReportsTitle}>Resident Reports</Text>
+          {reportError ? (
+            <Text style={styles.reportError}>{reportError}</Text>
+          ) : reports.length ? (
+            reports.map((report) => (
+              <Pressable
+                key={report.id}
+                onPress={() =>
+                  router.push({
+                    pathname: "/council-report-detail",
+                    params: { id: report.id },
+                  })
+                }
+                style={styles.residentReportCard}
+              >
+                <View style={styles.residentReportCopy}>
+                  <Text style={styles.residentReportName} numberOfLines={1}>
+                    {report.title}
+                  </Text>
+                  <Text style={styles.residentReportArea} numberOfLines={1}>
+                    {report.neighborhood} · {report.status.replace("_", " ")}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={Colors.councilTextSecondary}
+                />
+              </Pressable>
+            ))
+          ) : (
+            <Text style={styles.reportEmpty}>
+              No resident reports to review.
+            </Text>
+          )}
+        </View>
+
         {/* Stats */}
         <View style={styles.statsRow}>
           <StatCard value={TOTAL_ITEMS} label="Total Pending" />
@@ -147,19 +208,19 @@ export default function CouncilDashboardScreen() {
         {/* List */}
         <View style={styles.list}>
           {filteredItems.map((item) => (
-              <PendingItemCard
-                  key={item.id}
-                  item={item}
-                  onPress={(pressedItem) => {
-                    if (pressedItem.category === "pickup") {
-                      router.push({
-                        pathname: "/item-detail-pickup",
-                        params: { id: pressedItem.id },
-                      });
-                    }
-                    // TODO: dumping items still need their own item-detail-report screen and route
-                  }}
-              />
+            <PendingItemCard
+              key={item.id}
+              item={item}
+              onPress={(pressedItem) => {
+                if (pressedItem.category === "pickup") {
+                  router.push({
+                    pathname: "/item-detail-pickup",
+                    params: { id: pressedItem.id },
+                  });
+                }
+                // TODO: dumping items still need their own item-detail-report screen and route
+              }}
+            />
           ))}
         </View>
 
@@ -217,6 +278,31 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 16,
   },
+  residentReports: { gap: 9 },
+  residentReportsTitle: {
+    color: Colors.councilHeaderText,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  residentReportCard: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.councilBorder,
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  residentReportCopy: { flex: 1, gap: 4 },
+  residentReportName: {
+    color: Colors.councilTextPrimary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  residentReportArea: { color: Colors.councilTextSecondary, fontSize: 11 },
+  reportError: { color: Colors.error, fontSize: 12 },
+  reportEmpty: { color: Colors.councilTextSecondary, fontSize: 12 },
   statsRow: {
     flexDirection: "row",
     gap: 8,
