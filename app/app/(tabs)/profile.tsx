@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,301 +15,411 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
+import { createProfile, readProfile, updateProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 
-const HEADER_EXTRA_PADDING = 8;
-
-type UserProfile = {
-  id: string;
-  name: string;
-  email: string;
+type ProfileForm = {
+  full_name: string;
   phone: string;
-  location: string;
-  memberSince: string;
-  role: string;
-  reportedIssues: number;
-  pickupRequests: number;
-  avatarUrl: string;
+  address_line: string;
+  neighborhood: string;
 };
 
-const USER_PROFILES: UserProfile[] = [
-  {
-    id: "resident-001",
-    name: "Sarath Perera",
-    email: "sarath.perera@gmail.com",
-    phone: "+94 71 4467 990",
-    location: "16, Flower Lane, Borella",
-    memberSince: "Jan 2023",
-    role: "RESIDENT",
-    reportedIssues: 23,
-    pickupRequests: 12,
-    avatarUrl:
-      "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=320&q=90",
-  },
-];
+const EMPTY_FORM: ProfileForm = {
+  full_name: "",
+  phone: "",
+  address_line: "",
+  neighborhood: "",
+};
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const [userId, setUserId] = useState("");
+  const [email, setEmail] = useState("");
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [originalForm, setOriginalForm] = useState(EMPTY_FORM);
+  const [hasProfile, setHasProfile] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [users, setUsers] = useState<UserProfile[]>(USER_PROFILES);
-  const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState<UserProfile>(USER_PROFILES[0]);
-  const user = users[0];
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const handleBack = () => {
-    if (router.canGoBack()) return router.back();
-    router.replace("/(tabs)/home");
-  };
+  useEffect(() => {
+    let mounted = true;
 
-  const handleSignOut = async () => {
+    async function loadProfile() {
+      setErrorMessage("");
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        if (!data.user) {
+          router.replace("/(auth)/login");
+          return;
+        }
+
+        const profile = await readProfile(data.user.id);
+        if (!mounted) return;
+
+        const initialForm = profile
+          ? {
+              full_name: profile.full_name,
+              phone: profile.phone,
+              address_line: profile.address_line,
+              neighborhood: profile.neighborhood,
+            }
+          : {
+              ...EMPTY_FORM,
+              full_name: String(data.user.user_metadata?.full_name ?? ""),
+            };
+
+        setUserId(data.user.id);
+        setEmail(data.user.email ?? "");
+        setForm(initialForm);
+        setOriginalForm(initialForm);
+        setHasProfile(Boolean(profile));
+        setEditing(!profile);
+        setLoadFailed(false);
+      } catch (error) {
+        if (mounted) {
+          const code =
+            typeof error === "object" && error !== null && "code" in error
+              ? String(error.code)
+              : "";
+          setLoadFailed(true);
+          setErrorMessage(
+            code === "PGRST205" || code === "42P01"
+              ? "Profile storage is missing from Supabase. Apply migration 20261002000000_create_user_profiles.sql, then tap Retry."
+              : error instanceof Error
+                ? error.message
+                : "Could not load your profile. Check your connection and retry.",
+          );
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    void loadProfile();
+    return () => {
+      mounted = false;
+    };
+  }, [loadAttempt]);
+
+  function setField(field: keyof ProfileForm, value: string) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrorMessage("");
+    setSuccessMessage("");
+  }
+
+  async function saveProfile() {
+    const profile = {
+      full_name: form.full_name.trim(),
+      phone: form.phone.trim(),
+      address_line: form.address_line.trim(),
+      neighborhood: form.neighborhood.trim(),
+    };
+
+    if (!Object.values(profile).every(Boolean)) {
+      setErrorMessage("Please complete all required fields.");
+      return;
+    }
+    if (
+      !/^[+()\d\s.-]{7,20}$/.test(profile.phone) ||
+      profile.phone.replace(/\D/g, "").length < 7
+    ) {
+      setErrorMessage("Enter a valid phone number.");
+      return;
+    }
+    if (
+      profile.address_line.length < 5 ||
+      !/[\p{L}\d]/u.test(profile.address_line)
+    ) {
+      setErrorMessage("Enter a valid street address.");
+      return;
+    }
+    if (
+      profile.neighborhood.length < 2 ||
+      !/[\p{L}]/u.test(profile.neighborhood)
+    ) {
+      setErrorMessage("Enter a valid neighborhood or area.");
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const savedProfile = hasProfile
+        ? await updateProfile(userId, profile)
+        : await createProfile(userId, profile);
+      const savedForm = {
+        full_name: savedProfile.full_name,
+        phone: savedProfile.phone,
+        address_line: savedProfile.address_line,
+        neighborhood: savedProfile.neighborhood,
+      };
+      setForm(savedForm);
+      setOriginalForm(savedForm);
+      setHasProfile(true);
+      setEditing(false);
+      setSuccessMessage("Your profile has been saved.");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "We couldn't save your profile. Please try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function signOut() {
     setSigningOut(true);
     setErrorMessage("");
     const { error } = await supabase.auth.signOut();
     setSigningOut(false);
-    if (error) return setErrorMessage(error.message);
-    router.replace("/");
-  };
-
-  const handleEditProfile = () => {
-    if (isEditing) {
-      setUsers((currentUsers) =>
-        currentUsers.map((currentUser) =>
-          currentUser.id === draft.id ? draft : currentUser,
-        ),
-      );
-      setIsEditing(false);
-      return;
-    }
-
-    setDraft(user);
-    setIsEditing(true);
-  };
+    if (error) setErrorMessage(error.message);
+    else router.replace("/");
+  }
 
   return (
-    <View style={styles.screen}>
-      <View
-        style={[
-          styles.header,
-          { paddingTop: insets.top + HEADER_EXTRA_PADDING },
-        ]}
-      >
-        <View style={styles.headerRow}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.screen}
+    >
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <Pressable
+          accessibilityLabel="Go back"
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace("/(tabs)/home")
+          }
+          style={styles.iconButton}
+        >
+          <Ionicons
+            name="chevron-back"
+            size={22}
+            color={Colors.cardTextSecondary}
+          />
+        </Pressable>
+        <Text style={styles.headerTitle}>My Profile</Text>
+        {hasProfile && !editing ? (
           <Pressable
-            accessibilityLabel="Go back"
-            hitSlop={8}
-            onPress={handleBack}
-            style={styles.headerButton}
+            accessibilityLabel="Edit profile"
+            accessibilityRole="button"
+            onPress={() => {
+              setErrorMessage("");
+              setSuccessMessage("");
+              setEditing(true);
+            }}
+            style={styles.editButton}
           >
             <Ionicons
-              name="chevron-back"
-              size={22}
+              name="pencil-outline"
+              size={16}
               color={Colors.cardTextSecondary}
             />
+            <Text style={styles.editButtonText}>Edit</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>My Profile</Text>
-          <Pressable
-            accessibilityLabel={isEditing ? "Save profile" : "Edit profile"}
-            hitSlop={8}
-            onPress={handleEditProfile}
-            style={styles.headerButton}
-          >
-            <Ionicons
-              name={isEditing ? "checkmark" : "pencil-outline"}
-              size={18}
-              color={Colors.cardTextSecondary}
-            />
-          </Pressable>
-        </View>
+        ) : (
+          <View style={styles.iconButton} />
+        )}
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.identityCard}>
-          <View style={styles.avatarBorder}>
-            <Image
-              accessibilityLabel={user.name}
-              contentFit="cover"
-              source={user.avatarUrl}
-              style={styles.avatar}
-            />
-          </View>
-          {isEditing ? (
-            <TextInput
-              autoCapitalize="words"
-              onChangeText={(name) =>
-                setDraft((current) => ({ ...current, name }))
-              }
-              style={[styles.name, styles.nameInput]}
-              value={draft.name}
-            />
-          ) : (
-            <Text style={styles.name}>{user.name}</Text>
-          )}
-          <View style={styles.rolePill}>
-            <Text style={styles.roleText}>{user.role}</Text>
-          </View>
+      {loading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator color={Colors.forestGreen} />
         </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardHeading}>CONTACT DETAILS</Text>
-          <ContactRow
-            editable={isEditing}
-            icon="mail-outline"
-            keyboardType="email-address"
-            label="Email Address"
-            onChangeText={(email) =>
-              setDraft((current) => ({ ...current, email }))
-            }
-            value={isEditing ? draft.email : user.email}
-          />
-          <View style={styles.divider} />
-          <ContactRow
-            editable={isEditing}
-            icon="call-outline"
-            label="Phone Number"
-            keyboardType="phone-pad"
-            onChangeText={(phone) =>
-              setDraft((current) => ({ ...current, phone }))
-            }
-            value={isEditing ? draft.phone : user.phone}
-          />
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardHeading}>ACCOUNT INFO</Text>
-          <InfoRow label="Member Since" value={user.memberSince} />
-          <View style={styles.divider} />
-          <InfoRow
-            editable={isEditing}
-            label="Location"
-            location
-            onChangeText={(location) =>
-              setDraft((current) => ({ ...current, location }))
-            }
-            value={isEditing ? draft.location : user.location}
-          />
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardHeading}>ACTIVITY SUMMARY</Text>
-          <View style={styles.activityRow}>
-            <ActivityStat
-              count={String(user.reportedIssues)}
-              label="Reported Issues"
-              style={styles.issueStat}
-            />
-            <ActivityStat
-              count={String(user.pickupRequests)}
-              label="Pickup Requests"
-              style={styles.pickupStat}
-            />
-          </View>
-        </View>
-
-        <Pressable
-          accessibilityRole="button"
-          disabled={signingOut}
-          onPress={handleSignOut}
-          style={[styles.signOutButton, signingOut && styles.buttonDisabled]}
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {signingOut ? (
-            <ActivityIndicator color={Colors.cardTextSecondary} />
-          ) : (
-            <Text style={styles.signOutText}>Sign Out</Text>
-          )}
-        </Pressable>
-        {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-      </ScrollView>
-    </View>
+          <View style={styles.intro}>
+            <View style={styles.avatar}>
+              <Ionicons name="person" size={30} color={Colors.forestGreen} />
+            </View>
+            <Text style={styles.title}>
+              {hasProfile ? "Your details" : "Create your profile"}
+            </Text>
+            <Text style={styles.subtitle}>
+              Your address helps connect reports and pickups to the right
+              neighborhood.
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>PERSONAL DETAILS</Text>
+            <ProfileField
+              label="Full name"
+              icon="person-outline"
+              value={form.full_name}
+              editable={editing}
+              placeholder="Your full name"
+              onChangeText={(value) => setField("full_name", value)}
+            />
+            <ProfileField
+              label="Email address"
+              icon="mail-outline"
+              value={email}
+              editable={false}
+            />
+            <ProfileField
+              label="Phone number"
+              icon="call-outline"
+              value={form.phone}
+              editable={editing}
+              placeholder="e.g. +94 77 123 4567"
+              keyboardType="phone-pad"
+              onChangeText={(value) => setField("phone", value)}
+            />
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>SERVICE LOCATION</Text>
+            <ProfileField
+              label="Street address"
+              icon="location-outline"
+              value={form.address_line}
+              editable={editing}
+              placeholder="House number and street"
+              onChangeText={(value) => setField("address_line", value)}
+            />
+            <ProfileField
+              label="Neighborhood / area"
+              icon="map-outline"
+              value={form.neighborhood}
+              editable={editing}
+              placeholder="e.g. Borella"
+              onChangeText={(value) => setField("neighborhood", value)}
+            />
+            <Text style={styles.helper}>
+              Neighborhood is saved separately for reporting and pickup queries.
+            </Text>
+          </View>
+
+          {errorMessage ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {errorMessage}
+            </Text>
+          ) : null}
+          {loadFailed ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setLoading(true);
+                setLoadAttempt((attempt) => attempt + 1);
+              }}
+              style={styles.retryButton}
+            >
+              <Text style={styles.retryText}>Retry profile load</Text>
+            </Pressable>
+          ) : null}
+          {successMessage ? (
+            <Text accessibilityRole="alert" style={styles.success}>
+              {successMessage}
+            </Text>
+          ) : null}
+
+          {editing ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                disabled={saving}
+                onPress={() => void saveProfile()}
+                style={[styles.primaryButton, saving && styles.disabled]}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.primaryText}>
+                    {hasProfile ? "Save changes" : "Save profile"}
+                  </Text>
+                )}
+              </Pressable>
+              {hasProfile ? (
+                <Pressable
+                  onPress={() => {
+                    setForm(originalForm);
+                    setEditing(false);
+                    setErrorMessage("");
+                    setSuccessMessage("");
+                  }}
+                  style={styles.cancelButton}
+                >
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : null}
+
+          <Pressable
+            accessibilityRole="button"
+            disabled={signingOut}
+            onPress={() => void signOut()}
+            style={styles.signOutButton}
+          >
+            {signingOut ? (
+              <ActivityIndicator color={Colors.cardTextSecondary} />
+            ) : (
+              <Text style={styles.signOutText}>Sign Out</Text>
+            )}
+          </Pressable>
+        </ScrollView>
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
-function ContactRow({
-  editable,
-  icon,
-  keyboardType,
+function ProfileField({
   label,
-  onChangeText,
+  icon,
   value,
+  editable,
+  onChangeText,
+  placeholder,
+  keyboardType,
 }: {
-  editable: boolean;
-  icon: "mail-outline" | "call-outline";
-  keyboardType?: "email-address" | "phone-pad";
   label: string;
-  onChangeText: (value: string) => void;
+  icon:
+    | "person-outline"
+    | "mail-outline"
+    | "call-outline"
+    | "location-outline"
+    | "map-outline";
   value: string;
+  editable: boolean;
+  onChangeText?: (value: string) => void;
+  placeholder?: string;
+  keyboardType?: "phone-pad";
 }) {
   return (
-    <View style={styles.contactRow}>
-      <View style={styles.iconBox}>
-        <Ionicons name={icon} size={15} color={Colors.forestGreen} />
+    <View style={styles.field}>
+      <View style={styles.fieldIcon}>
+        <Ionicons name={icon} size={17} color={Colors.forestGreen} />
       </View>
-      <View style={styles.contactCopy}>
-        <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.fieldBody}>
+        <Text style={styles.label}>{label}</Text>
         {editable ? (
           <TextInput
-            autoCapitalize="none"
+            autoCapitalize={icon === "mail-outline" ? "none" : "words"}
             autoCorrect={false}
             keyboardType={keyboardType}
             onChangeText={onChangeText}
-            style={[styles.fieldValue, styles.inlineInput]}
+            placeholder={placeholder}
+            placeholderTextColor="#9A9BA0"
+            style={styles.input}
             value={value}
           />
         ) : (
-          <Text style={styles.fieldValue}>{value}</Text>
+          <Text style={styles.value}>{value || "—"}</Text>
         )}
       </View>
-    </View>
-  );
-}
-
-function InfoRow({
-  editable = false,
-  label,
-  location = false,
-  onChangeText,
-  value,
-}: {
-  editable?: boolean;
-  label: string;
-  location?: boolean;
-  onChangeText?: (value: string) => void;
-  value: string;
-}) {
-  const valueStyle = [styles.infoValue, location && styles.locationValue];
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      {editable ? (
-        <TextInput
-          autoCapitalize="words"
-          onChangeText={onChangeText}
-          style={[...valueStyle, styles.infoInput]}
-          value={value}
-        />
-      ) : (
-        <Text style={valueStyle}>{value}</Text>
-      )}
-    </View>
-  );
-}
-
-function ActivityStat({
-  count,
-  label,
-  style,
-}: {
-  count: string;
-  label: string;
-  style: object;
-}) {
-  return (
-    <View style={[styles.activityStat, style]}>
-      <Text style={styles.statCount}>{count}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -316,162 +427,152 @@ function ActivityStat({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.homeBackground },
   header: {
-    backgroundColor: Colors.homeBackground,
-    borderBottomColor: "#E7E7EC",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerRow: {
-    alignItems: "center",
     flexDirection: "row",
-    height: 41,
+    alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-  },
-  headerButton: {
-    alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderColor: "#ECEBEC",
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 34,
-    justifyContent: "center",
-    width: 34,
+    paddingBottom: 12,
   },
   headerTitle: {
     color: Colors.cardTextSecondary,
     fontSize: 22,
     fontWeight: "700",
-    letterSpacing: -0.5,
   },
-  content: { gap: 21, padding: 20, paddingBottom: 20 },
-  identityCard: {
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: Colors.surface,
-    borderColor: "#F0EFF0",
-    borderRadius: 16,
     borderWidth: 1,
-    minHeight: 185,
-    paddingBottom: 18,
-    paddingTop: 19,
+    borderColor: "#ECEBEC",
   },
-  avatarBorder: {
-    borderColor: "#075819",
-    borderRadius: 43,
-    borderWidth: 2,
-    height: 85,
-    overflow: "hidden",
-    width: 85,
+  editButton: {
+    height: 36,
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: "#ECEBEC",
   },
-  avatar: { height: "100%", width: "100%" },
-  name: {
+  editButtonText: {
     color: Colors.cardTextSecondary,
-    fontSize: 21,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-    marginTop: 14,
+    fontSize: 13,
+    fontWeight: "600",
   },
-  nameInput: { minWidth: 180, padding: 0, textAlign: "center" },
-  rolePill: {
-    backgroundColor: "#F0F0F4",
-    borderRadius: 13,
+  loader: { flex: 1, justifyContent: "center" },
+  content: { padding: 20, paddingBottom: 30, gap: 16 },
+  intro: { alignItems: "center", paddingVertical: 10 },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#EAFBF3",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  title: { fontSize: 21, fontWeight: "700", color: Colors.cardTextSecondary },
+  subtitle: {
     marginTop: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 4,
+    maxWidth: 310,
+    textAlign: "center",
+    color: Colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
   },
-  roleText: { color: "#075819", fontSize: 12, fontWeight: "700" },
   card: {
     backgroundColor: Colors.surface,
     borderColor: "#F0EFF0",
-    borderRadius: 16,
     borderWidth: 1,
+    borderRadius: 16,
     padding: 16,
   },
-  cardHeading: {
+  sectionTitle: {
     color: Colors.cardTextSecondary,
     fontSize: 11,
     fontWeight: "700",
-    marginBottom: 12,
+    marginBottom: 9,
   },
-  contactRow: { alignItems: "center", flexDirection: "row" },
-  iconBox: {
-    alignItems: "center",
-    backgroundColor: "#F0F0F4",
-    borderColor: "#DEDEE4",
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 32,
-    justifyContent: "center",
-    width: 32,
-  },
-  contactCopy: { flex: 1, marginLeft: 12 },
-  fieldLabel: {
-    color: Colors.cardTextSecondary,
-    fontSize: 11,
-    fontWeight: "500",
-    marginBottom: 2,
-  },
-  fieldValue: {
-    color: Colors.cardTextSecondary,
-    fontSize: 14,
-    fontWeight: "700",
-    letterSpacing: -0.25,
-  },
-  inlineInput: { padding: 0 },
-  divider: { backgroundColor: "#EAE9EA", height: 1, marginVertical: 12 },
-  infoRow: {
-    alignItems: "center",
+  field: {
+    minHeight: 63,
     flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  infoLabel: {
-    color: Colors.cardTextSecondary,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  infoValue: {
-    color: Colors.cardTextSecondary,
-    fontSize: 14,
-    fontWeight: "700",
-    textAlign: "right",
-  },
-  infoInput: { minWidth: 170, padding: 0 },
-  locationValue: { fontSize: 13, maxWidth: "62%" },
-  activityRow: { flexDirection: "row", gap: 10 },
-  activityStat: {
     alignItems: "center",
-    borderRadius: 12,
-    borderWidth: 1,
-    flex: 1,
-    paddingVertical: 13,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#EAE9EA",
+    paddingVertical: 9,
   },
-  issueStat: { backgroundColor: "#F0F0F4", borderColor: "#DEDEE4" },
-  pickupStat: { backgroundColor: "#EAFBF3", borderColor: "#D2EFE2" },
-  statCount: {
-    color: "#075819",
-    fontSize: 26,
-    fontWeight: "700",
-    lineHeight: 29,
-  },
-  statLabel: {
-    color: Colors.cardTextSecondary,
-    fontSize: 11,
-    fontWeight: "600",
-    marginTop: 5,
-  },
-  signOutButton: {
+  fieldIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#F0F0F4",
     alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderColor: "#ECEBEC",
-    borderRadius: 12,
-    borderWidth: 1,
     justifyContent: "center",
+    marginRight: 12,
+  },
+  fieldBody: { flex: 1 },
+  label: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "500",
+    marginBottom: 3,
+  },
+  value: { color: Colors.cardTextSecondary, fontSize: 14, fontWeight: "700" },
+  input: {
+    color: Colors.cardTextSecondary,
+    fontSize: 14,
+    fontWeight: "600",
+    padding: 0,
+    minHeight: 22,
+  },
+  helper: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  primaryButton: {
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: Colors.forestGreen,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  primaryText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  disabled: { opacity: 0.7 },
+  cancelButton: {
+    minHeight: 42,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cancelText: { color: Colors.textSecondary, fontWeight: "600" },
+  signOutButton: {
     minHeight: 45,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: "#ECEBEC",
+    alignItems: "center",
+    justifyContent: "center",
   },
   signOutText: {
     color: Colors.cardTextSecondary,
     fontSize: 15,
     fontWeight: "700",
   },
-  buttonDisabled: { opacity: 0.7 },
-  error: { color: Colors.error, fontSize: 14, textAlign: "center" },
+  error: { color: Colors.error, fontSize: 13, textAlign: "center" },
+  retryButton: { alignItems: "center", paddingVertical: 8 },
+  retryText: { color: Colors.forestGreen, fontSize: 13, fontWeight: "700" },
+  success: {
+    color: Colors.forestGreen,
+    fontSize: 13,
+    textAlign: "center",
+    fontWeight: "600",
+  },
 });
