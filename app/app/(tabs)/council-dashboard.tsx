@@ -162,8 +162,12 @@ export default function CouncilDashboardScreen() {
                               pathname: "/item-detail-pickup",
                               params: { id: pressedItem.id },
                             });
+                          } else if (pressedItem.category === "dumping") {
+                            router.push({
+                              pathname: "/item-detail-report",
+                              params: { id: pressedItem.id },
+                            });
                           }
-                          // TODO: dumping items still need their own item-detail-report screen and route
                         }}
                     />
                 ))
