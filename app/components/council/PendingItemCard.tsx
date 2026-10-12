@@ -4,13 +4,17 @@ import { Colors } from "@/constants/Colors";
 import { ItemStatus, StatusBadge } from "./StatusBadge";
 
 export type PendingItemCategory = "pickup" | "dumping";
+export type WasteCategory = "general" | "recyclable" | "hazardous" | "bulk" | "illegal_dumping";
 
 export interface PendingItem {
   id: string;
   title: string;
   category: PendingItemCategory;
+  wasteCategory: WasteCategory;
   location: string;
+  area: string;
   date: string;
+  dateISO: string;
   status: ItemStatus;
 }
 
@@ -19,48 +23,45 @@ interface PendingItemCardProps {
   onPress?: (item: PendingItem) => void;
 }
 
-const CATEGORY_ICON: Record<
-  PendingItemCategory,
-  keyof typeof Ionicons.glyphMap
-> = {
+const CATEGORY_ICON: Record<PendingItemCategory, keyof typeof Ionicons.glyphMap> = {
   pickup: "car-outline",
   dumping: "warning-outline",
 };
 
 export function PendingItemCard({ item, onPress }: PendingItemCardProps) {
   return (
-    <Pressable style={styles.card} onPress={() => onPress?.(item)}>
-      <View style={styles.iconCircle}>
-        <Ionicons
-          name={CATEGORY_ICON[item.category]}
-          size={18}
-          color={Colors.councilTextSecondary}
-        />
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text style={styles.date}>{item.date}</Text>
-        </View>
-
-        <View style={styles.metaRow}>
-          <View style={styles.locationRow}>
-            <Ionicons
-              name="location-outline"
-              size={12}
+      <Pressable style={styles.card} onPress={() => onPress?.(item)}>
+        <View style={styles.iconCircle}>
+          <Ionicons
+              name={CATEGORY_ICON[item.category]}
+              size={18}
               color={Colors.councilTextSecondary}
-            />
-            <Text style={styles.location} numberOfLines={1}>
-              {item.location}
-            </Text>
-          </View>
-          <StatusBadge status={item.status} />
+          />
         </View>
-      </View>
-    </Pressable>
+
+        <View style={styles.content}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.date}>{item.date}</Text>
+          </View>
+
+          <View style={styles.metaRow}>
+            <View style={styles.locationRow}>
+              <Ionicons
+                  name="location-outline"
+                  size={12}
+                  color={Colors.councilTextSecondary}
+              />
+              <Text style={styles.location} numberOfLines={1}>
+                {item.location}
+              </Text>
+            </View>
+            <StatusBadge status={item.status} />
+          </View>
+        </View>
+      </Pressable>
   );
 }
 
