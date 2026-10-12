@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,6 +13,7 @@ import { TabSwitcher } from "@/components/council/TabSwitcher";
 import { EMPTY_FILTERS, FilterModal, FilterState } from "@/components/council/FilterModal";
 import { Colors } from "@/constants/Colors";
 import { isWithinDateRange } from "@/lib/itemFilters";
+import { listCouncilReports, Report } from "@/lib/reports";
 
 const HEADER_EXTRA_PADDING = 8;
 const TABS = ["All", "Pickups", "Dumping"] as const;
@@ -33,15 +34,37 @@ const TOTAL_PAGES = 4;
 export default function CouncilDashboardScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("All");
+  const [reports, setReports] = useState<Report[]>([]);
+  const [reportError, setReportError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
 
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void listCouncilReports()
+        .then((items) => {
+          if (active) setReports(items);
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            setReportError(
+              error instanceof Error ? error.message : "Couldn't load reports.",
+            );
+          }
+        });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
   const activeFilterCount =
-      filters.statuses.length +
-      filters.wasteCategories.length +
-      (filters.area.trim() ? 1 : 0) +
-      (filters.dateRange !== "all" ? 1 : 0);
+    filters.statuses.length +
+    filters.wasteCategories.length +
+    (filters.area.trim() ? 1 : 0) +
+    (filters.dateRange !== "all" ? 1 : 0);
 
   const filteredItems = useMemo(() => {
     return MOCK_ITEMS.filter((item) => {
@@ -51,9 +74,9 @@ export default function CouncilDashboardScreen() {
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
         const matchesSearch =
-            item.title.toLowerCase().includes(query) ||
-            item.location.toLowerCase().includes(query) ||
-            item.area.toLowerCase().includes(query);
+          item.title.toLowerCase().includes(query) ||
+          item.location.toLowerCase().includes(query) ||
+          item.area.toLowerCase().includes(query);
         if (!matchesSearch) return false;
       }
 
@@ -62,8 +85,8 @@ export default function CouncilDashboardScreen() {
       }
 
       if (
-          filters.wasteCategories.length > 0 &&
-          !filters.wasteCategories.includes(item.wasteCategory)
+        filters.wasteCategories.length > 0 &&
+        !filters.wasteCategories.includes(item.wasteCategory)
       ) {
         return false;
       }
@@ -71,8 +94,8 @@ export default function CouncilDashboardScreen() {
       if (filters.area.trim()) {
         const areaQuery = filters.area.trim().toLowerCase();
         const matchesArea =
-            item.area.toLowerCase().includes(areaQuery) ||
-            item.location.toLowerCase().includes(areaQuery);
+          item.area.toLowerCase().includes(areaQuery) ||
+          item.location.toLowerCase().includes(areaQuery);
         if (!matchesArea) return false;
       }
 
@@ -88,108 +111,149 @@ export default function CouncilDashboardScreen() {
   const dumpingCount = MOCK_ITEMS.filter((i) => i.category === "dumping").length;
 
   return (
-      <View style={styles.screen}>
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + HEADER_EXTRA_PADDING }]}>
-          <Text style={styles.headerTitle}>Pending Items</Text>
-          <Pressable
-              style={styles.profileButton}
-              onPress={() => router.push("/council-profile")}
-          >
-            <Ionicons name="person-outline" size={16} color={Colors.councilHeaderText} />
-            <Text style={styles.profileText}>Profile</Text>
-          </Pressable>
+    <View style={styles.screen}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + HEADER_EXTRA_PADDING }]}>
+        <Text style={styles.headerTitle}>Pending Items</Text>
+        <Pressable
+          style={styles.profileButton}
+          onPress={() => router.push("/council-profile")}
+        >
+          <Ionicons name="person-outline" size={16} color={Colors.councilHeaderText} />
+          <Text style={styles.profileText}>Profile</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Resident reports */}
+        <View style={styles.residentReports}>
+          <Text style={styles.residentReportsTitle}>Resident Reports</Text>
+          {reportError ? (
+            <Text style={styles.reportError}>{reportError}</Text>
+          ) : reports.length ? (
+            reports.map((report) => (
+              <Pressable
+                key={report.id}
+                onPress={() =>
+                  router.push({
+                    pathname: "/council-report-detail",
+                    params: { id: report.id },
+                  })
+                }
+                style={styles.residentReportCard}
+              >
+                <View style={styles.residentReportCopy}>
+                  <Text style={styles.residentReportName} numberOfLines={1}>
+                    {report.title}
+                  </Text>
+                  <Text style={styles.residentReportArea} numberOfLines={1}>
+                    {report.neighborhood} · {report.status.replace("_", " ")}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={Colors.councilTextSecondary}
+                />
+              </Pressable>
+            ))
+          ) : (
+            <Text style={styles.reportEmpty}>No resident reports to review.</Text>
+          )}
         </View>
 
-        <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-        >
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <StatCard value={TOTAL_ITEMS} label="Total Pending" />
-            <StatCard value={pickupCount} label="Pickups" />
-            <StatCard value={dumpingCount} label="Dumping" />
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <StatCard value={TOTAL_ITEMS} label="Total Pending" />
+          <StatCard value={pickupCount} label="Pickups" />
+          <StatCard value={dumpingCount} label="Dumping" />
+        </View>
+
+        {/* Tabs */}
+        <View style={styles.tabSection}>
+          <TabSwitcher
+            tabs={[...TABS]}
+            activeTab={activeTab}
+            onChange={(t) => setActiveTab(t as typeof activeTab)}
+          />
+
+          {/* Search */}
+          <View style={styles.searchRow}>
+            <Ionicons name="search-outline" size={16} color={Colors.councilTextMuted} />
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search by title, location or area"
+              placeholderTextColor={Colors.councilTextMuted}
+            />
           </View>
 
-          {/* Tabs */}
-          <View style={styles.tabSection}>
-            <TabSwitcher tabs={[...TABS]} activeTab={activeTab} onChange={(t) => setActiveTab(t as typeof activeTab)} />
-
-            {/* Search */}
-            <View style={styles.searchRow}>
-              <Ionicons name="search-outline" size={16} color={Colors.councilTextMuted} />
-              <TextInput
-                  style={styles.searchInput}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="Search by title, location or area"
-                  placeholderTextColor={Colors.councilTextMuted}
-              />
-            </View>
-
-            <View style={styles.listMetaRow}>
-              <Text style={styles.listMetaText}>
-                Showing {filteredItems.length} of {TOTAL_ITEMS} items
-              </Text>
-              <Pressable style={styles.filterButton} onPress={() => setFilterModalVisible(true)}>
-                <Ionicons name="options-outline" size={14} color={Colors.councilTextSecondary} />
-                <Text style={styles.filterButtonText}>Filters</Text>
-                {activeFilterCount > 0 && (
-                    <View style={styles.filterBadge}>
-                      <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
-                    </View>
-                )}
-              </Pressable>
-            </View>
-          </View>
-
-          {/* List */}
-          <View style={styles.list}>
-            {filteredItems.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Ionicons name="file-tray-outline" size={28} color={Colors.councilTextMuted} />
-                  <Text style={styles.emptyStateText}>No requests match your filters</Text>
+          <View style={styles.listMetaRow}>
+            <Text style={styles.listMetaText}>
+              Showing {filteredItems.length} of {TOTAL_ITEMS} items
+            </Text>
+            <Pressable style={styles.filterButton} onPress={() => setFilterModalVisible(true)}>
+              <Ionicons name="options-outline" size={14} color={Colors.councilTextSecondary} />
+              <Text style={styles.filterButtonText}>Filters</Text>
+              {activeFilterCount > 0 && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
                 </View>
-            ) : (
-                filteredItems.map((item) => (
-                    <PendingItemCard
-                        key={item.id}
-                        item={item}
-                        onPress={(pressedItem) => {
-                          if (pressedItem.category === "pickup") {
-                            router.push({
-                              pathname: "/item-detail-pickup",
-                              params: { id: pressedItem.id },
-                            });
-                          } else if (pressedItem.category === "dumping") {
-                            router.push({
-                              pathname: "/item-detail-report",
-                              params: { id: pressedItem.id },
-                            });
-                          }
-                        }}
-                    />
-                ))
-            )}
-          </View>
-
-          {/* Load more */}
-          <View style={styles.loadMoreWrap}>
-            <Pressable style={styles.loadMoreButton}>
-              <Text style={styles.loadMoreText}>Load More Items (1 of {TOTAL_PAGES} pages)</Text>
+              )}
             </Pressable>
           </View>
-        </ScrollView>
+        </View>
 
-        <FilterModal
-            visible={filterModalVisible}
-            filters={filters}
-            onChange={setFilters}
-            onClose={() => setFilterModalVisible(false)}
-            onClear={() => setFilters(EMPTY_FILTERS)}
-        />
-      </View>
+        {/* List */}
+        <View style={styles.list}>
+          {filteredItems.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="file-tray-outline" size={28} color={Colors.councilTextMuted} />
+              <Text style={styles.emptyStateText}>No requests match your filters</Text>
+            </View>
+          ) : (
+            filteredItems.map((item) => (
+              <PendingItemCard
+                key={item.id}
+                item={item}
+                onPress={(pressedItem) => {
+                  if (pressedItem.category === "pickup") {
+                    router.push({
+                      pathname: "/item-detail-pickup",
+                      params: { id: pressedItem.id },
+                    });
+                  } else if (pressedItem.category === "dumping") {
+                    router.push({
+                      pathname: "/item-detail-report",
+                      params: { id: pressedItem.id },
+                    });
+                  }
+                }}
+              />
+            ))
+          )}
+        </View>
+
+        {/* Load more */}
+        <View style={styles.loadMoreWrap}>
+          <Pressable style={styles.loadMoreButton}>
+            <Text style={styles.loadMoreText}>Load More Items (1 of {TOTAL_PAGES} pages)</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+
+      <FilterModal
+        visible={filterModalVisible}
+        filters={filters}
+        onChange={setFilters}
+        onClose={() => setFilterModalVisible(false)}
+        onClear={() => setFilters(EMPTY_FILTERS)}
+      />
+    </View>
   );
 }
 
@@ -234,6 +298,31 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 16,
   },
+  residentReports: { gap: 9 },
+  residentReportsTitle: {
+    color: Colors.councilHeaderText,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  residentReportCard: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.councilBorder,
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  residentReportCopy: { flex: 1, gap: 4 },
+  residentReportName: {
+    color: Colors.councilTextPrimary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  residentReportArea: { color: Colors.councilTextSecondary, fontSize: 11 },
+  reportError: { color: Colors.error, fontSize: 12 },
+  reportEmpty: { color: Colors.councilTextSecondary, fontSize: 12 },
   statsRow: {
     flexDirection: "row",
     gap: 8,
