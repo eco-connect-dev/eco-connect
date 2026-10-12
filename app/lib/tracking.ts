@@ -20,6 +20,40 @@ export type NewDumpingReport = {
   notes: string;
 };
 
+// Temporary API-shaped data for the resident tracking prototype.
+export const COLOMBO_TRACKING_REQUESTS: TrackedRequest[] = [
+  {
+    id: "demo-colombo-pickup-001",
+    source: "pickup_requests",
+    reporter_id: "demo-resident",
+    category: "Recycling",
+    status: "assigned",
+    submitted_at: "2026-10-12T08:30:00+05:30",
+    location: "42 Ward Place, Colombo 07, Sri Lanka",
+    notes: "Recycling bags and flattened cardboard boxes.",
+  },
+  {
+    id: "demo-colombo-report-002",
+    source: "dumping_reports",
+    reporter_id: "demo-resident",
+    category: "Illegal dumping",
+    status: "in_review",
+    submitted_at: "2026-10-10T14:15:00+05:30",
+    location: "Marine Drive, Bambalapitiya, Colombo, Sri Lanka",
+    notes: "Mixed waste reported near the public walkway.",
+  },
+  {
+    id: "demo-colombo-pickup-003",
+    source: "pickup_requests",
+    reporter_id: "demo-resident",
+    category: "Bulk waste",
+    status: "resolved",
+    submitted_at: "2026-10-06T09:00:00+05:30",
+    location: "Rajagiriya Junction, Sri Lanka",
+    notes: "Old furniture collection completed.",
+  },
+];
+
 type RawRequest = Omit<TrackedRequest, "source" | "reporter_id"> & {
   reporter_id?: string;
   resident_id?: string;
@@ -96,6 +130,11 @@ export async function getMyTrackedRequest(
   source: TrackingSource,
   id: string,
 ): Promise<TrackedRequest> {
+  const demoRequest = COLOMBO_TRACKING_REQUESTS.find(
+    (request) => request.id === id && request.source === source,
+  );
+  if (demoRequest) return demoRequest;
+
   const { data: auth, error: authError } = await supabase.auth.getUser();
   if (authError) throw authError;
   if (!auth.user) throw new Error("Sign in to view this request.");

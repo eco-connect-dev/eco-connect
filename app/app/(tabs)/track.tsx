@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -9,28 +10,35 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import {
+  COLOMBO_TRACKING_REQUESTS,
   getRequestTitle,
-  listMyRequests,
   RequestStatus,
-  subscribeToCurrentResidentRequests,
-  removeRequestsSubscription,
   TrackedRequest,
 } from "@/lib/tracking";
 
 const STATUS_LABELS: Record<RequestStatus, string> = {
-  pending: "Pending",
-  in_review: "In review",
-  assigned: "Assigned",
-  resolved: "Resolved",
+  pending: "Request received",
+  in_review: "Being reviewed",
+  assigned: "Crew assigned",
+  resolved: "Request completed",
+};
+
+const STATUS_PROGRESS: Record<RequestStatus, number> = {
+  pending: 0.25,
+  in_review: 0.5,
+  assigned: 0.75,
+  resolved: 1,
 };
 
 export default function TrackScreen() {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const [requests, setRequests] = useState<TrackedRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -41,10 +49,12 @@ export default function TrackScreen() {
     else setLoading(true);
     setError("");
     try {
-      setRequests(await listMyRequests());
+      // Keep this async so replacing the mock with a fetch call is seamless.
+      const response = await Promise.resolve(COLOMBO_TRACKING_REQUESTS);
+      setRequests(response);
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Couldn't load reports.",
+        cause instanceof Error ? cause.message : "Couldn't load requests.",
       );
     } finally {
       setLoading(false);
@@ -54,34 +64,18 @@ export default function TrackScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      let channel: Awaited<
-        ReturnType<typeof subscribeToCurrentResidentRequests>
-      > | null = null;
       void loadRequests();
-      void subscribeToCurrentResidentRequests(() => {
-        void loadRequests(true);
-      })
-        .then((subscription) => {
-          if (active) channel = subscription;
-          else void removeRequestsSubscription(subscription);
-        })
-        .catch(() => undefined);
-      return () => {
-        active = false;
-        if (channel) void removeRequestsSubscription(channel);
-      };
     }, [loadRequests]),
   );
 
+  const request =
+    requests.find((item) => item.status !== "resolved") ?? requests[0];
+  const mapHeight = Math.min(606, Math.max(500, height * 0.7));
+
   return (
     <View style={styles.screen}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.title}>Track Requests</Text>
-        <Text style={styles.subtitle}>Updates from your local council</Text>
-      </View>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -89,65 +83,71 @@ export default function TrackScreen() {
             tintColor={Colors.forestGreen}
           />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {loading ? (
-          <ActivityIndicator color={Colors.forestGreen} style={styles.loader} />
-        ) : error ? (
-          <View style={styles.emptyCard}>
+        <View style={[styles.mapSection, { height: mapHeight }]}>
+          <MapPreview />
+          <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+            <View style={styles.brand}>
+              <Image
+                source={require("@/assets/images/logo.png")}
+                style={styles.logo}
+                contentFit="contain"
+              />
+              <Text style={styles.brandTitle}>Resident Tracking</Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Open profile"
+              onPress={() => router.push("/(tabs)/profile")}
+              style={styles.profileButton}
+            >
+              <Ionicons name="person" size={15} color="#FFFFFF" />
+            </Pressable>
+          </View>
+
+          <View style={styles.mapTopFade} />
+          <View style={styles.crewPill}>
+            <Ionicons name="bus" size={18} color="#FFFFFF" />
+            <Text style={styles.crewPillText}>
+              {request?.status === "assigned"
+                ? "Crew is on the way"
+                : "Tracking your request"}
+            </Text>
+          </View>
+          <View style={styles.locationMarker}>
+            <View style={styles.markerPulse} />
+            <View style={styles.markerDot}>
+              <Ionicons name="location" size={16} color={Colors.forestGreen} />
+            </View>
+          </View>
+        </View>
+
+        {loading && !requests.length ? (
+          <View style={styles.stateCard}>
+            <ActivityIndicator color={Colors.forestGreen} />
+          </View>
+        ) : error && !requests.length ? (
+          <View style={styles.stateCard}>
             <Text style={styles.error}>{error}</Text>
             <Pressable onPress={() => void loadRequests()} style={styles.retry}>
               <Text style={styles.retryText}>Try again</Text>
             </Pressable>
           </View>
-        ) : requests.length ? (
-          requests.map((request) => (
-            <Pressable
-              accessibilityRole="button"
-              key={`${request.source}:${request.id}`}
-              onPress={() =>
-                router.push({
-                  pathname: "/tracking-detail",
-                  params: { id: request.id, source: request.source },
-                })
-              }
-              style={styles.reportCard}
-            >
-              <View style={styles.reportTop}>
-                <Text style={styles.reportTitle} numberOfLines={2}>
-                  {getRequestTitle(request)}
-                </Text>
-                <Ionicons name="chevron-forward" size={18} color="#829087" />
-              </View>
-              <Text style={styles.neighborhood}>
-                {request.location} ·{" "}
-                {new Date(request.submitted_at).toLocaleDateString()}
-              </Text>
-              <Text style={styles.requestType}>
-                {request.source === "pickup_requests"
-                  ? "Pickup request"
-                  : "Illegal dumping report"}
-              </Text>
-              <View style={styles.statusLine}>
-                <View style={[styles.dot, styles[`dot_${request.status}`]]} />
-                <Text style={styles.statusText}>
-                  {STATUS_LABELS[request.status]}
-                </Text>
-              </View>
-            </Pressable>
-          ))
+        ) : request ? (
+          <TrackingSheet request={request} />
         ) : (
-          <View style={styles.emptyCard}>
+          <View style={styles.stateCard}>
             <View style={styles.emptyIcon}>
               <Ionicons
-                name="document-text-outline"
+                name="map-outline"
                 size={25}
                 color={Colors.forestGreen}
               />
             </View>
-            <Text style={styles.emptyTitle}>No requests or reports yet</Text>
+            <Text style={styles.emptyTitle}>Nothing to track yet</Text>
             <Text style={styles.emptyText}>
-              Your pickup requests and illegal dumping reports will appear here
-              with their latest council status.
+              Your pickup requests and reports will appear here with live
+              updates from your local council.
             </Text>
           </View>
         )}
@@ -156,53 +156,355 @@ export default function TrackScreen() {
   );
 }
 
+function TrackingSheet({ request }: { request: TrackedRequest }) {
+  const progress = STATUS_PROGRESS[request.status];
+
+  return (
+    <View style={styles.sheet}>
+      <View style={styles.sheetHeader}>
+        <View style={styles.sheetIcon}>
+          <Ionicons
+            name={
+              request.source === "pickup_requests"
+                ? "trash-outline"
+                : "warning-outline"
+            }
+            size={25}
+            color={Colors.forestGreen}
+          />
+        </View>
+        <View style={styles.sheetHeading}>
+          <Text style={styles.sheetTitle}>{STATUS_LABELS[request.status]}</Text>
+          <Text style={styles.sheetSubtitle}>
+            {request.source === "pickup_requests"
+              ? "Waste pickup request"
+              : "Illegal dumping report"}
+          </Text>
+        </View>
+        <View style={styles.liveBadge}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>LIVE</Text>
+        </View>
+      </View>
+
+      <Text style={styles.requestTitle} numberOfLines={2}>
+        {getRequestTitle(request)}
+      </Text>
+
+      <View style={styles.infoRow}>
+        <Ionicons name="time-outline" size={20} color={Colors.forestGreen} />
+        <Text style={styles.infoText}>
+          Updated {new Date(request.submitted_at).toLocaleDateString()}
+        </Text>
+      </View>
+      <View style={styles.infoRow}>
+        <Ionicons
+          name="location-outline"
+          size={20}
+          color={Colors.forestGreen}
+        />
+        <Text style={styles.infoText} numberOfLines={1}>
+          {request.location}
+        </Text>
+      </View>
+
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+      </View>
+      <View style={styles.progressLabels}>
+        <Text style={styles.progressLabel}>Submitted</Text>
+        <Text style={styles.progressLabel}>In progress</Text>
+        <Text style={styles.progressLabel}>Complete</Text>
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={() =>
+          router.push({
+            pathname: "/tracking-detail",
+            params: { id: request.id, source: request.source },
+          })
+        }
+        style={styles.detailsButton}
+      >
+        <Text style={styles.detailsButtonText}>View request details</Text>
+        <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+      </Pressable>
+    </View>
+  );
+}
+
+function MapPreview() {
+  return (
+    <View style={styles.mapPreview}>
+      <View style={[styles.mapRoad, styles.mapRoadOne]} />
+      <View style={[styles.mapRoad, styles.mapRoadTwo]} />
+      <View style={[styles.mapRoad, styles.mapRoadThree]} />
+      <View style={[styles.mapRoad, styles.mapRoadFour]} />
+      <View style={[styles.mapBlock, styles.mapBlockOne]} />
+      <View style={[styles.mapBlock, styles.mapBlockTwo]} />
+      <View style={[styles.mapBlock, styles.mapBlockThree]} />
+      <View style={[styles.mapBlock, styles.mapBlockFour]} />
+      <View style={styles.mapWater} />
+      <View style={styles.mapScale}>
+        <View style={styles.mapScaleLine} />
+        <Text style={styles.mapScaleLabel}>Colombo, Sri Lanka</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.homeBackground },
-  header: { paddingHorizontal: 20, paddingBottom: 18 },
-  title: { color: Colors.cardTextSecondary, fontSize: 25, fontWeight: "700" },
-  subtitle: { color: Colors.textSecondary, fontSize: 13, marginTop: 4 },
-  content: { padding: 16, paddingBottom: 30, gap: 12, flexGrow: 1 },
-  loader: { marginTop: 32 },
-  reportCard: {
-    backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: 14,
+  scrollContent: { paddingBottom: 26 },
+  mapSection: {
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "#D5E6D5",
+  },
+  mapPreview: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: "#D8E9D7",
+    overflow: "hidden",
+  },
+  mapRoad: {
+    position: "absolute",
+    backgroundColor: "#F8F4E8",
+    borderColor: "#CADCC6",
     borderWidth: 1,
-    borderColor: "#EAEDEA",
-    gap: 10,
   },
-  reportTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  reportTitle: {
-    color: Colors.cardTextSecondary,
-    fontSize: 15,
-    fontWeight: "700",
-    flex: 1,
+  mapRoadOne: {
+    width: "130%",
+    height: 44,
+    top: 138,
+    left: -50,
+    transform: [{ rotate: "-25deg" }],
   },
-  neighborhood: { color: Colors.textSecondary, fontSize: 12 },
-  requestType: { color: Colors.textSecondary, fontSize: 11 },
-  statusLine: {
+  mapRoadTwo: {
+    width: "140%",
+    height: 28,
+    top: 330,
+    left: -40,
+    transform: [{ rotate: "20deg" }],
+  },
+  mapRoadThree: {
+    width: 26,
+    height: "130%",
+    top: -80,
+    left: "48%",
+    transform: [{ rotate: "27deg" }],
+  },
+  mapRoadFour: {
+    width: "100%",
+    height: 20,
+    top: 470,
+    left: 10,
+    transform: [{ rotate: "-11deg" }],
+  },
+  mapBlock: {
+    position: "absolute",
+    backgroundColor: "rgba(105, 161, 103, 0.3)",
+    borderRadius: 12,
+  },
+  mapBlockOne: { width: 100, height: 78, top: 75, left: 18 },
+  mapBlockTwo: { width: 128, height: 86, top: 105, right: -12 },
+  mapBlockThree: { width: 105, height: 130, top: 290, left: -18 },
+  mapBlockFour: { width: 135, height: 88, top: 405, right: 14 },
+  mapWater: {
+    position: "absolute",
+    width: 160,
+    height: 260,
+    right: -45,
+    bottom: -80,
+    borderRadius: 100,
+    backgroundColor: "rgba(151, 199, 213, 0.35)",
+    transform: [{ rotate: "22deg" }],
+  },
+  mapTopFade: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 96,
+    backgroundColor: "rgba(249,249,253,0.7)",
+  },
+  topBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    minHeight: 64,
+    paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    marginTop: 1,
+    justifyContent: "space-between",
+    zIndex: 2,
   },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  dot_pending: { backgroundColor: "#D99018" },
-  dot_in_review: { backgroundColor: "#2878C8" },
-  dot_assigned: { backgroundColor: "#7A56C2" },
-  dot_resolved: { backgroundColor: "#168047" },
-  statusText: {
+  brand: { flexDirection: "row", alignItems: "center", gap: 9 },
+  logo: { width: 30, height: 30, borderRadius: 8 },
+  brandTitle: {
+    color: Colors.cardTextPrimary,
+    fontSize: 18,
+    fontWeight: "600",
+    letterSpacing: -0.25,
+  },
+  profileButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.pickupGradientEnd,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  crewPill: {
+    position: "absolute",
+    top: "52%",
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 17,
+    height: 38,
+    borderRadius: 20,
+    backgroundColor: Colors.pickupGradientEnd,
+    shadowColor: "#121417",
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+    zIndex: 3,
+  },
+  crewPillText: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
+  locationMarker: {
+    position: "absolute",
+    top: "59%",
+    alignSelf: "center",
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(0,69,13,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  markerPulse: {
+    position: "absolute",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.homeBackground,
+  },
+  markerDot: {
+    width: 17,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: Colors.forestGreen,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mapScale: {
+    position: "absolute",
+    left: 16,
+    bottom: 18,
+    gap: 3,
+  },
+  mapScaleLine: {
+    width: 38,
+    height: 3,
+    backgroundColor: Colors.cardTextSecondary,
+  },
+  mapScaleLabel: {
     color: Colors.cardTextSecondary,
-    fontSize: 12,
+    fontSize: 9,
+    fontWeight: "600",
+  },
+  sheet: {
+    marginHorizontal: 20,
+    marginTop: -48,
+    padding: 18,
+    borderRadius: 24,
+    backgroundColor: Colors.surface,
+    shadowColor: "#121417",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 8,
+    zIndex: 5,
+    gap: 12,
+  },
+  sheetHeader: { flexDirection: "row", alignItems: "center", gap: 11 },
+  sheetIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#EAFBF3",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetHeading: { flex: 1, gap: 3 },
+  sheetTitle: {
+    color: Colors.cardTextPrimary,
+    fontSize: 18,
     fontWeight: "700",
   },
-  emptyCard: {
-    marginTop: 20,
+  sheetSubtitle: { color: Colors.textSecondary, fontSize: 11 },
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
+    backgroundColor: "#EAFBF3",
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#168047" },
+  liveText: { color: Colors.forestGreen, fontSize: 9, fontWeight: "800" },
+  requestTitle: {
+    color: Colors.cardTextPrimary,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 9 },
+  infoText: { color: Colors.cardTextSecondary, fontSize: 12, flex: 1 },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(0,69,13,0.1)",
+    overflow: "hidden",
+    marginTop: 3,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+    backgroundColor: Colors.forestGreen,
+  },
+  progressLabels: { flexDirection: "row", justifyContent: "space-between" },
+  progressLabel: { color: Colors.textSecondary, fontSize: 9 },
+  detailsButton: {
+    marginTop: 2,
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.pickupGradientEnd,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  detailsButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
+  stateCard: {
+    marginHorizontal: 20,
+    marginTop: -48,
+    minHeight: 170,
+    borderRadius: 24,
     backgroundColor: Colors.surface,
-    borderRadius: 14,
     padding: 24,
     alignItems: "center",
+    justifyContent: "center",
     gap: 9,
+    zIndex: 5,
   },
   emptyIcon: {
     width: 48,
