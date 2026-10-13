@@ -50,7 +50,9 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier . --check",
     "format:write": "prettier . --write",
-    "test": "jest"
+    "test": "jest",
+    "_comment": "Example: pnpm test:page __tests__/request.test.tsx",
+    "test:page": "jest --runInBand"
   },
   "private": true
 }
