@@ -17,6 +17,7 @@ out/
 
 # OS/editor
 .DS_Store
+.idea/
 
 # Supabase local development artifacts
 supabase/.temp/
