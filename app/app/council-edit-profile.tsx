@@ -93,7 +93,7 @@ export default function CouncilEditProfileScreen() {
               value={params.email ?? ""}
               editable={false}
             />
-            <Text style={styles.hint}>Email can&apost be changed here</Text>
+            <Text style={styles.hint}>Email can&apos;t be changed here</Text>
           </View>
 
           <View style={styles.field}>
