@@ -1,5 +1,4 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Modal, View } from "react-native";
 
 import { StatusDropdown } from "@/components/council/StatusDropdown";
 import { mockViewMeasureInWindow } from "@/test-utils/mockViewMeasure";

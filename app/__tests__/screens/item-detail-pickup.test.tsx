@@ -1,8 +1,8 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import { router } from "expo-router";
 
 import ItemDetailPickupScreen from "@/app/item-detail-pickup";
-import { getFirstPressable, mockViewMeasureInWindow } from "@/test-utils/mockViewMeasure";
+import { mockViewMeasureInWindow } from "@/test-utils/mockViewMeasure";
 
 jest.mock("expo-router", () => ({
     router: { push: jest.fn(), back: jest.fn() },
