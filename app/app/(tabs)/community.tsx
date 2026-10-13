@@ -147,13 +147,17 @@ function PostCard({ post }: { post: CommunityPost }) {
           </View>
         </View>
       </View>
-      <Text style={styles.description}>{post.description}</Text>
-      <Image
-        contentFit="cover"
-        source={{ uri: post.image_url }}
-        style={styles.postImage}
-        transition={180}
-      />
+      {post.description ? (
+        <Text style={styles.description}>{post.description}</Text>
+      ) : null}
+      {post.image_url ? (
+        <Image
+          contentFit="cover"
+          source={{ uri: post.image_url }}
+          style={styles.postImage}
+          transition={180}
+        />
+      ) : null}
     </View>
   );
 }

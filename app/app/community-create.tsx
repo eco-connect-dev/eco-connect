@@ -3,6 +3,7 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -33,11 +34,11 @@ export default function CreateCommunityPostScreen() {
     const cleanLocation = location.trim();
     const cleanImageUrl = imageUrl.trim();
 
-    if (!cleanDescription || !cleanLocation || !cleanImageUrl) {
-      setError("Add a description, location, and image link to continue.");
+    if (!cleanLocation) {
+      setError("Add a location to continue.");
       return;
     }
-    if (!/^https?:\/\//i.test(cleanImageUrl)) {
+    if (cleanImageUrl && !/^https?:\/\//i.test(cleanImageUrl)) {
       setError(
         "Enter a valid public image URL starting with http:// or https://.",
       );
@@ -62,11 +63,15 @@ export default function CreateCommunityPostScreen() {
       await createCommunityPost({
         authorId: data.user.id,
         authorName,
-        description: cleanDescription,
+        description: cleanDescription || null,
         location: cleanLocation,
-        imageUrl: cleanImageUrl,
+        imageUrl: cleanImageUrl || null,
       });
-      router.replace("/(tabs)/community");
+      Alert.alert(
+        "Post created successfully",
+        "Your post is now in the community feed.",
+        [{ text: "OK", onPress: () => router.replace("/(tabs)/community") }],
+      );
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -113,6 +118,7 @@ export default function CreateCommunityPostScreen() {
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Description</Text>
+          <Text style={styles.helper}>Optional</Text>
           <TextInput
             accessibilityLabel="Post description"
             multiline
@@ -152,7 +158,9 @@ export default function CreateCommunityPostScreen() {
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Image</Text>
-          <Text style={styles.helper}>Paste a public link to an image.</Text>
+          <Text style={styles.helper}>
+            Optional. Paste a public link to an image.
+          </Text>
           <TextInput
             accessibilityLabel="Image URL"
             autoCapitalize="none"

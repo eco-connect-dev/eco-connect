@@ -4,9 +4,9 @@ export type CommunityPost = {
   id: string;
   author_id: string;
   author_name: string;
-  description: string;
+  description: string | null;
   location: string;
-  image_url: string;
+  image_url: string | null;
   created_at: string;
 };
 
@@ -31,18 +31,18 @@ export async function createCommunityPost({
 }: {
   authorId: string;
   authorName: string;
-  description: string;
+  description: string | null;
   location: string;
-  imageUrl: string;
+  imageUrl: string | null;
 }) {
   const { data, error } = await supabase
     .from("community_posts")
     .insert({
       author_id: authorId,
       author_name: authorName.trim(),
-      description: description.trim(),
+      description: description?.trim() || null,
       location: location.trim(),
-      image_url: imageUrl.trim(),
+      image_url: imageUrl?.trim() || null,
     })
     .select(
       "id, author_id, author_name, description, location, image_url, created_at",
