@@ -70,7 +70,7 @@ export default function CreateCommunityPostScreen() {
       Alert.alert(
         "Post created successfully",
         "Your post is now in the community feed.",
-        [{ text: "OK", onPress: () => router.replace("/(tabs)/community") }],
+        [{ text: "OK", onPress: () => router.replace("/(tabs)/home") }],
       );
     } catch (cause) {
       setError(
