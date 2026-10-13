@@ -65,6 +65,19 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="community"
+          options={{
+            title: "Community",
+            tabBarIcon: ({ focused, color }) => (
+              <Ionicons
+                name={focused ? "people" : "people-outline"}
+                size={22}
+                color={color}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="track"
           options={{
             title: "Track",
@@ -90,14 +103,8 @@ export default function TabLayout() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="admin-dashboard"
-          options={{ href: null }}
-        />
-        <Tabs.Screen
-          name="council-dashboard"
-          options={{ href: null }}
-        />
+        <Tabs.Screen name="admin-dashboard" options={{ href: null }} />
+        <Tabs.Screen name="council-dashboard" options={{ href: null }} />
         <Tabs.Screen
           name="more"
           options={{

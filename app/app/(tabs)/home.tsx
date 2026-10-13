@@ -78,9 +78,19 @@ export default function ResidentHomeScreen() {
         <View style={[styles.section, styles.noticesSection]}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Community Notices</Text>
-            <Pressable>
-              <Text style={styles.viewAllText}>View All</Text>
-            </Pressable>
+            <View style={styles.noticeActions}>
+              <Pressable
+                accessibilityLabel="Create community post"
+                accessibilityRole="button"
+                onPress={() => router.push("/community-create")}
+                style={styles.addPostButton}
+              >
+                <Ionicons name="add" size={22} color="#FFFFFF" />
+              </Pressable>
+              <Pressable onPress={() => router.push("/(tabs)/community")}>
+                <Text style={styles.viewAllText}>View All</Text>
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.noticesList}>
@@ -168,6 +178,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  noticeActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  addPostButton: {
+    alignItems: "center",
+    backgroundColor: Colors.forestGreen,
+    borderRadius: 18,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
   },
   viewAllText: {
     fontSize: 16,
