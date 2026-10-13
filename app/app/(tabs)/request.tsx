@@ -67,7 +67,7 @@ export default function RequestScreen() {
       setNotes("");
       Alert.alert(
         "Request submitted",
-        `${wasteType} pickup requested for ${location.address}.`,
+        `${wasteType} pickup requested for ${location.address.trim()}.`,
         [
           { text: "Done", style: "cancel" },
           {
