@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -18,13 +19,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import { createCommunityPost } from "@/lib/community";
+import { uploadImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 
 export default function CreateCommunityPostScreen() {
   const insets = useSafeAreaInsets();
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -32,19 +34,11 @@ export default function CreateCommunityPostScreen() {
     if (submitting) return;
     const cleanDescription = description.trim();
     const cleanLocation = location.trim();
-    const cleanImageUrl = imageUrl.trim();
 
     if (!cleanLocation) {
       setError("Add a location to continue.");
       return;
     }
-    if (cleanImageUrl && !/^https?:\/\//i.test(cleanImageUrl)) {
-      setError(
-        "Enter a valid public image URL starting with http:// or https://.",
-      );
-      return;
-    }
-
     setSubmitting(true);
     setError("");
     try {
@@ -60,12 +54,15 @@ export default function CreateCommunityPostScreen() {
           data.user.email?.split("@")[0] ??
           "Community member",
       );
+      const imageUrl = photo
+        ? await uploadImage("community_posts", data.user.id, photo)
+        : null;
       await createCommunityPost({
         authorId: data.user.id,
         authorName,
         description: cleanDescription || null,
         location: cleanLocation,
-        imageUrl: cleanImageUrl || null,
+        imageUrl,
       });
       Alert.alert(
         "Post created successfully",
@@ -80,6 +77,19 @@ export default function CreateCommunityPostScreen() {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const choosePhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      quality: 0.8,
+      base64: true,
+    });
+    if (!result.canceled) {
+      setPhoto(result.assets[0]);
+      setError("");
     }
   };
 
@@ -158,30 +168,19 @@ export default function CreateCommunityPostScreen() {
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Image</Text>
-          <Text style={styles.helper}>
-            Optional. Paste a public link to an image.
-          </Text>
-          <TextInput
-            accessibilityLabel="Image URL"
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            onChangeText={(value) => {
-              setImageUrl(value);
-              setError("");
-            }}
-            placeholder="https://example.com/photo.jpg"
-            placeholderTextColor="#929A94"
-            style={styles.input}
-            value={imageUrl}
-          />
-          {/^https?:\/\//i.test(imageUrl.trim()) ? (
+          <Text style={styles.helper}>Optional. Choose a photo from your library.</Text>
+          <Pressable accessibilityRole="button" onPress={() => void choosePhoto()} style={styles.photoPicker}>
+            <Ionicons name="image-outline" size={19} color={Colors.forestGreen} />
+            <Text style={styles.photoPickerText}>{photo ? "Change photo" : "Choose photo"}</Text>
+          </Pressable>
+          {photo ? (
             <Image
               contentFit="cover"
-              source={{ uri: imageUrl.trim() }}
+              source={{ uri: photo.uri }}
               style={styles.imagePreview}
             />
           ) : null}
+          {photo ? <Pressable onPress={() => setPhoto(null)}><Text style={styles.removePhoto}>Remove photo</Text></Pressable> : null}
         </View>
 
         {error ? (
@@ -273,6 +272,19 @@ const styles = StyleSheet.create({
     marginTop: 4,
     width: "100%",
   },
+  photoPicker: {
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderColor: Colors.divider,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 9,
+    minHeight: 48,
+    paddingHorizontal: 14,
+  },
+  photoPickerText: { color: Colors.forestGreen, fontSize: 14, fontWeight: "700" },
+  removePhoto: { color: Colors.error, fontSize: 12, fontWeight: "600" },
   error: { color: Colors.error, fontSize: 13, lineHeight: 18 },
   submitButton: {
     alignItems: "center",

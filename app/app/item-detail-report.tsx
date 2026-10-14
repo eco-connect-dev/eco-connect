@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -112,6 +113,7 @@ export default function ItemDetailReportScreen() {
                     <Text style={styles.sectionLabel}>Report Description</Text>
                     <Text style={styles.descriptionText}>{report?.notes || "No additional notes provided."}</Text>
                 </View>
+                {report?.image_url ? <Image contentFit="cover" source={{ uri: report.image_url }} style={styles.reportImage} /> : null}
 
                 {/* Reported by */}
                 {error ? <Text style={styles.submitterContact}>{error}</Text> : null}
@@ -259,6 +261,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         color: Colors.councilTextPrimary,
     },
+    reportImage: { width: "100%", height: 240, borderRadius: 8 },
     submitterCard: {
         backgroundColor: Colors.surface,
         borderWidth: 1,

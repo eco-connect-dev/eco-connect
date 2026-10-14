@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Colors } from "@/constants/Colors";
 import { ItemStatus, StatusBadge } from "./StatusBadge";
@@ -16,6 +17,7 @@ export interface PendingItem {
   date: string;
   dateISO: string;
   status: ItemStatus;
+  imageUrl?: string | null;
 }
 
 interface PendingItemCardProps {
@@ -61,6 +63,7 @@ export function PendingItemCard({ item, onPress }: PendingItemCardProps) {
             <StatusBadge status={item.status} />
           </View>
         </View>
+        {item.imageUrl ? <Image contentFit="cover" source={{ uri: item.imageUrl }} style={styles.thumbnail} /> : null}
       </Pressable>
   );
 }
@@ -91,6 +94,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  thumbnail: { width: 46, height: 46, borderRadius: 6 },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",

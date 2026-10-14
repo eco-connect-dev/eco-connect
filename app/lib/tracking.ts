@@ -13,12 +13,14 @@ export type TrackedRequest = {
   submitted_at: string;
   location: string;
   notes: string | null;
+  image_url?: string | null;
 };
 
 export type NewDumpingReport = {
   category: string;
   location: string;
   notes: string;
+  image_url?: string | null;
 };
 
 // Temporary API-shaped data for the resident tracking prototype.
@@ -65,7 +67,7 @@ export async function listCouncilRequests(): Promise<TrackedRequest[]> {
   const [dumpingResult, pickupResult] = await Promise.all([
     supabase
       .from("dumping_reports")
-      .select("id, reporter_id, category, status, submitted_at, location, notes")
+      .select("id, reporter_id, category, status, submitted_at, location, notes, image_url")
       .order("submitted_at", { ascending: false }),
     supabase
       .from("pickup_requests")
@@ -102,13 +104,13 @@ export async function getCouncilRequest(
     .select(
       isPickup
         ? "id, resident_id, category, status, submitted_at, location, notes"
-        : "id, reporter_id, category, status, submitted_at, location, notes",
+        : "id, reporter_id, category, status, submitted_at, location, notes, image_url",
     )
     .eq("id", id)
     .single();
 
   if (error) throw error;
-  const row = data as RawRequest;
+  const row = data as unknown as RawRequest;
   return {
     ...row,
     source,
@@ -130,12 +132,12 @@ export async function updateCouncilRequestStatus(
     .select(
       source === "pickup_requests"
         ? "id, resident_id, category, status, submitted_at, location, notes"
-        : "id, reporter_id, category, status, submitted_at, location, notes",
+        : "id, reporter_id, category, status, submitted_at, location, notes, image_url",
     )
     .single();
 
   if (error) throw error;
-  const row = data as RawRequest;
+  const row = data as unknown as RawRequest;
   return {
     ...row,
     source,
@@ -152,7 +154,7 @@ export async function listMyRequests(): Promise<TrackedRequest[]> {
     supabase
       .from("dumping_reports")
       .select(
-        "id, reporter_id, category, status, submitted_at, location, notes",
+        "id, reporter_id, category, status, submitted_at, location, notes, image_url",
       )
       .eq("reporter_id", auth.user.id)
       .order("submitted_at", { ascending: false }),
@@ -197,6 +199,7 @@ export async function submitDumpingReport(input: NewDumpingReport) {
       category: input.category.trim(),
       location: input.location.trim(),
       notes: input.notes.trim() || null,
+      image_url: input.image_url ?? null,
       status: "pending",
     })
     .select("id")
@@ -230,14 +233,14 @@ export async function getMyTrackedRequest(
     .select(
       isPickup
         ? "id, resident_id, category, status, submitted_at, location, notes"
-        : "id, reporter_id, category, status, submitted_at, location, notes",
+        : "id, reporter_id, category, status, submitted_at, location, notes, image_url",
     )
     .eq("id", id)
     .eq(ownerField, auth.user.id)
     .single();
 
   if (error) throw error;
-  const row = data as RawRequest;
+  const row = data as unknown as RawRequest;
   return {
     ...row,
     source,

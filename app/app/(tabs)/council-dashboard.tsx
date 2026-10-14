@@ -41,6 +41,7 @@ function toPendingItem(request: TrackedRequest): PendingItem {
     date: Number.isNaN(submittedAt.getTime()) ? "" : submittedAt.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
     dateISO: Number.isNaN(submittedAt.getTime()) ? "" : submittedAt.toISOString().slice(0, 10),
     status,
+    imageUrl: request.image_url,
   };
 }
 

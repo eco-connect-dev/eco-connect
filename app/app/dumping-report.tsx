@@ -1,4 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -17,6 +19,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import { submitDumpingReport } from "@/lib/tracking";
+import { uploadImage } from "@/lib/storage";
+import { supabase } from "@/lib/supabase";
 
 const CATEGORIES = ["Illegal dumping", "Street litter", "Overflowing bin"];
 
@@ -25,6 +29,7 @@ export default function DumpingReportScreen() {
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
+  const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,9 +43,19 @@ export default function DumpingReportScreen() {
     setSubmitting(true);
     setError("");
     try {
-      await submitDumpingReport({ category, location, notes });
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!auth.user) {
+        router.replace("/(auth)/login");
+        return;
+      }
+      const image_url = photo
+        ? await uploadImage("dump-report-images", auth.user.id, photo)
+        : null;
+      await submitDumpingReport({ category, location, notes, image_url });
       setLocation("");
       setNotes("");
+      setPhoto(null);
       Alert.alert(
         "Report submitted",
         "Your report has been sent to the council and is now available in Track.",
@@ -62,6 +77,19 @@ export default function DumpingReportScreen() {
       setSubmitting(false);
     }
   }
+
+  const choosePhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      quality: 0.8,
+      base64: true,
+    });
+    if (!result.canceled) {
+      setPhoto(result.assets[0]);
+      setError("");
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -144,6 +172,14 @@ export default function DumpingReportScreen() {
             textAlignVertical="top"
             value={notes}
           />
+
+          <Text style={styles.label}>Photo evidence (optional)</Text>
+          <Pressable accessibilityRole="button" onPress={() => void choosePhoto()} style={styles.photoPicker}>
+            <Ionicons name="image-outline" size={19} color={Colors.forestGreen} />
+            <Text style={styles.photoPickerText}>{photo ? "Change photo" : "Choose photo"}</Text>
+          </Pressable>
+          {photo ? <Image contentFit="cover" source={{ uri: photo.uri }} style={styles.photoPreview} /> : null}
+          {photo ? <Pressable onPress={() => setPhoto(null)}><Text style={styles.removePhoto}>Remove photo</Text></Pressable> : null}
         </View>
 
         {error ? (
@@ -236,6 +272,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   notesInput: { minHeight: 130, paddingTop: 12 },
+  photoPicker: {
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderColor: "#E0E5E1",
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 9,
+    minHeight: 48,
+    paddingHorizontal: 14,
+  },
+  photoPickerText: { color: Colors.forestGreen, fontSize: 14, fontWeight: "700" },
+  photoPreview: { width: "100%", height: 210, borderRadius: 12, marginTop: 4 },
+  removePhoto: { color: Colors.error, fontSize: 12, fontWeight: "600" },
   submitButton: {
     minHeight: 50,
     borderRadius: 12,
