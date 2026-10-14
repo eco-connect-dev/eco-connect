@@ -27,6 +27,12 @@
     "plugins": [
       "expo-router",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Eco-Connect to look up an address for a point you select on the map."
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Allow Eco-Connect to attach photos to community posts and dumping reports.",

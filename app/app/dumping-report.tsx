@@ -18,6 +18,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
+import {
+  DEFAULT_MAP_COORDINATE,
+  LocationPickerModal,
+} from "@/components/LocationPickerModal";
 import { submitDumpingReport } from "@/lib/tracking";
 import { uploadImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
@@ -28,6 +32,8 @@ export default function DumpingReportScreen() {
   const insets = useSafeAreaInsets();
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [location, setLocation] = useState("");
+  const [mapPoint, setMapPoint] = useState(DEFAULT_MAP_COORDINATE);
+  const [mapPickerVisible, setMapPickerVisible] = useState(false);
   const [notes, setNotes] = useState("");
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -147,6 +153,14 @@ export default function DumpingReportScreen() {
           </View>
 
           <Text style={styles.label}>Location</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setMapPickerVisible(true)}
+            style={styles.mapButton}
+          >
+            <Ionicons name="map-outline" size={19} color={Colors.forestGreen} />
+            <Text style={styles.mapButtonText}>Choose location from map</Text>
+          </Pressable>
           <TextInput
             autoCapitalize="words"
             onChangeText={(value) => {
@@ -204,6 +218,17 @@ export default function DumpingReportScreen() {
           </Text>
         </Pressable>
       </ScrollView>
+      <LocationPickerModal
+        visible={mapPickerVisible}
+        initialPoint={mapPoint}
+        onClose={() => setMapPickerVisible(false)}
+        onSelect={(selected) => {
+          setMapPoint(selected);
+          setLocation(selected.address);
+          setMapPickerVisible(false);
+          setError("");
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -271,6 +296,18 @@ const styles = StyleSheet.create({
     color: Colors.cardTextSecondary,
     fontSize: 14,
   },
+  mapButton: {
+    alignItems: "center",
+    backgroundColor: "#EAFBF3",
+    borderColor: Colors.forestGreen,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 9,
+    minHeight: 46,
+    paddingHorizontal: 12,
+  },
+  mapButtonText: { color: Colors.forestGreen, fontSize: 14, fontWeight: "700" },
   notesInput: { minHeight: 130, paddingTop: 12 },
   photoPicker: {
     alignItems: "center",
