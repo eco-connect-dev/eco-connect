@@ -9,8 +9,14 @@ import { AppRole, dashboardForRole, readUserRole } from "@/lib/userRole";
 export default function IndexScreen() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [roleError, setRoleError] = useState(false);
+  const [roleResult, setRoleResult] = useState<{
+    userId: string;
+    role: AppRole;
+  } | null>(null);
+  const [roleErrorResult, setRoleErrorResult] = useState<{
+    userId: string;
+    attempt: number;
+  } | null>(null);
   const [roleAttempt, setRoleAttempt] = useState(0);
 
   useEffect(() => {
@@ -49,22 +55,31 @@ export default function IndexScreen() {
 
   useEffect(() => {
     let mounted = true;
-    setRole(null);
-    setRoleError(false);
     if (!session) return;
 
     readUserRole(session.user.id)
       .then((nextRole) => {
-        if (mounted) setRole(nextRole);
+        if (mounted) {
+          setRoleResult({ userId: session.user.id, role: nextRole });
+        }
       })
       .catch(() => {
-        if (mounted) setRoleError(true);
+        if (mounted) {
+          setRoleErrorResult({ userId: session.user.id, attempt: roleAttempt });
+        }
       });
 
     return () => {
       mounted = false;
     };
   }, [session, roleAttempt]);
+
+  const role =
+    session && roleResult?.userId === session.user.id ? roleResult.role : null;
+  const roleError =
+    session &&
+    roleErrorResult?.userId === session.user.id &&
+    roleErrorResult.attempt === roleAttempt;
 
   if (loading || (session && role === null && !roleError)) {
     return (
