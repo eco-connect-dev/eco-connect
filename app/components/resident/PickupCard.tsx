@@ -3,20 +3,21 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
+import { TrackedRequest } from "@/lib/tracking";
 
 type PickupCardProps = {
-  day: string;
-  timeWindow: string;
-  wasteType: string;
+  request: TrackedRequest | null;
+  loading?: boolean;
   onViewDetails?: () => void;
 };
 
 export function PickupCard({
-  day,
-  timeWindow,
-  wasteType,
+  request,
+  loading = false,
   onViewDetails,
 }: PickupCardProps) {
+  const status = request?.status.replace("_", " ") ?? "";
+
   return (
     <LinearGradient
       colors={[Colors.pickupGradientStart, Colors.pickupGradientEnd]}
@@ -28,19 +29,40 @@ export function PickupCard({
 
       <View style={styles.topRow}>
         <View>
-          <Text style={styles.label}>NEXT SCHEDULED{"\n"}PICKUP</Text>
-          <Text style={styles.day}>{day}</Text>
-          <Text style={styles.time}>{timeWindow}</Text>
+          <Text style={styles.label}>
+            {request ? "LATEST PICKUP REQUEST" : "PICKUP REQUEST"}
+          </Text>
+          <Text style={styles.day}>
+            {loading
+              ? "Loading requests…"
+              : request
+                ? `${request.category} pickup`
+                : "No pickup requested"}
+          </Text>
+          <Text style={styles.time}>
+            {request
+              ? `Submitted ${new Date(request.submitted_at).toLocaleDateString()}`
+              : "Your pickup requests will appear here."}
+          </Text>
+          {request ? (
+            <Text style={styles.location} numberOfLines={1}>
+              {request.location}
+            </Text>
+          ) : null}
         </View>
 
-        <View style={styles.badge}>
-          <Ionicons name="sync-outline" size={14} color="#fff" />
-          <Text style={styles.badgeText}>{wasteType}</Text>
-        </View>
+        {request ? (
+          <View style={styles.badge}>
+            <Ionicons name="sync-outline" size={14} color="#fff" />
+            <Text style={styles.badgeText}>{status}</Text>
+          </View>
+        ) : null}
       </View>
 
       <Pressable style={styles.detailsButton} onPress={onViewDetails}>
-        <Text style={styles.detailsButtonText}>View Details</Text>
+        <Text style={styles.detailsButtonText}>
+          {request ? "Track Request" : "Request Pickup"}
+        </Text>
       </Pressable>
     </LinearGradient>
   );
@@ -89,6 +111,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "rgba(255,255,255,0.9)",
     lineHeight: 24,
+  },
+  location: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 12,
+    marginTop: 5,
+    maxWidth: 230,
   },
   badge: {
     flexDirection: "row",

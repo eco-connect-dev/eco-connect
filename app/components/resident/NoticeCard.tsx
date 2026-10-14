@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
 
@@ -10,6 +10,7 @@ type NoticeCardProps = {
   title: string;
   preview: string;
   timeAgo: string;
+  onPress?: () => void;
 };
 
 export function NoticeCard({
@@ -19,9 +20,10 @@ export function NoticeCard({
   title,
   preview,
   timeAgo,
+  onPress,
 }: NoticeCardProps) {
   return (
-    <View style={styles.card}>
+    <Pressable disabled={!onPress} onPress={onPress} style={styles.card}>
       <View style={[styles.iconCircle, { backgroundColor: iconBgColor }]}>
         <Ionicons name={icon} size={18} color={iconColor} />
       </View>
@@ -33,7 +35,7 @@ export function NoticeCard({
         </Text>
         <Text style={styles.timeAgo}>{timeAgo}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
