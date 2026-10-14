@@ -26,6 +26,7 @@ export default function RootLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="dumping-report" options={{ title: "Illegal Dump" }} />
       <Stack.Screen name="council-profile" options={{ headerShown: false }} />
       <Stack.Screen name="council-edit-profile" options={{ headerShown: false }}/>
       <Stack.Screen name="item-detail-pickup" options={{ headerShown: false }} />

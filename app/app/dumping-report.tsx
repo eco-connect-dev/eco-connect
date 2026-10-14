@@ -15,7 +15,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import {
@@ -29,7 +28,6 @@ import { supabase } from "@/lib/supabase";
 const CATEGORIES = ["Illegal dumping", "Street litter", "Overflowing bin"];
 
 export default function DumpingReportScreen() {
-  const insets = useSafeAreaInsets();
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [location, setLocation] = useState("");
   const [mapPoint, setMapPoint] = useState(DEFAULT_MAP_COORDINATE);
@@ -102,22 +100,6 @@ export default function DumpingReportScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.screen}
     >
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable
-          accessibilityLabel="Go back"
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Ionicons
-            name="chevron-back"
-            size={22}
-            color={Colors.cardTextSecondary}
-          />
-        </Pressable>
-        <Text style={styles.headerTitle}>Report an issue</Text>
-        <View style={styles.backButton} />
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -235,24 +217,6 @@ export default function DumpingReportScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.homeBackground },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    color: Colors.cardTextSecondary,
-    fontSize: 19,
-    fontWeight: "700",
-  },
   content: { padding: 20, paddingBottom: 32, gap: 16 },
   intro: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20 },
   card: {

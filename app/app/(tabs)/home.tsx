@@ -132,7 +132,7 @@ export default function ResidentHomeScreen() {
             />
             <QuickActionCard
               icon="alert-circle-outline"
-              label="Report Issue"
+              label="Illegal dump"
               iconBgColor={Colors.quickActionCoralBg}
               iconColor={Colors.coral}
               onPress={() => router.push("/dumping-report")}
