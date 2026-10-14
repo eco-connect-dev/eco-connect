@@ -16,9 +16,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import {
-  COLOMBO_TRACKING_REQUESTS,
   getRequestTitle,
+  listMyRequests,
+  removeRequestsSubscription,
   RequestStatus,
+  subscribeToCurrentResidentRequests,
+  subscribeToMyRequests,
   TrackedRequest,
 } from "@/lib/tracking";
 
@@ -51,8 +54,7 @@ export default function TrackScreen() {
     else setLoading(true);
     setError("");
     try {
-      // Keep this async so replacing the mock with a fetch call is seamless.
-      const response = await Promise.resolve(COLOMBO_TRACKING_REQUESTS);
+      const response = await listMyRequests();
       setRequests(response);
     } catch (cause) {
       setError(
@@ -67,12 +69,32 @@ export default function TrackScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadRequests();
+      let active = true;
+      let subscription:
+        | ReturnType<typeof subscribeToMyRequests>
+        | undefined;
+
+      void subscribeToCurrentResidentRequests(() => {
+        void loadRequests(true);
+      })
+        .then((channel) => {
+          if (active) subscription = channel;
+          else void removeRequestsSubscription(channel);
+        })
+        .catch(() => {
+          // The initial fetch still works if realtime is unavailable.
+        });
+
+      return () => {
+        active = false;
+        if (subscription) void removeRequestsSubscription(subscription);
+      };
     }, [loadRequests]),
   );
 
   const request =
     requests.find((item) => item.status !== "resolved") ?? requests[0];
-  const mapHeight = Math.min(606, Math.max(500, height * 0.7));
+  const mapHeight = Math.min(420, Math.max(280, height * 0.42));
 
   return (
     <View style={styles.screen}>
@@ -113,7 +135,9 @@ export default function TrackScreen() {
             <Text style={styles.crewPillText}>
               {request?.status === "assigned"
                 ? "Crew is on the way"
-                : "Tracking your request"}
+                : request
+                  ? "Tracking your submission"
+                  : "Your submissions map"}
             </Text>
           </View>
           <View style={styles.locationMarker}>
@@ -135,8 +159,17 @@ export default function TrackScreen() {
               <Text style={styles.retryText}>Try again</Text>
             </Pressable>
           </View>
-        ) : request ? (
-          <TrackingSheet request={request} />
+        ) : requests.length ? (
+          <View style={styles.submissions}>
+            <View style={styles.submissionsHeader}>
+              <Text style={styles.submissionsTitle}>My submissions</Text>
+              <Text style={styles.submissionsCount}>{requests.length}</Text>
+            </View>
+            {error ? <Text style={styles.refreshError}>{error}</Text> : null}
+            {requests.map((item) => (
+              <TrackingSheet key={`${item.source}:${item.id}`} request={item} />
+            ))}
+          </View>
         ) : (
           <View style={styles.stateCard}>
             <View style={styles.emptyIcon}>
@@ -196,9 +229,21 @@ function TrackingSheet({ request }: { request: TrackedRequest }) {
       <View style={styles.infoRow}>
         <Ionicons name="time-outline" size={20} color={Colors.forestGreen} />
         <Text style={styles.infoText}>
-          Updated {new Date(request.submitted_at).toLocaleDateString()}
+          Submitted {new Date(request.submitted_at).toLocaleDateString()}
         </Text>
       </View>
+      {request.notes ? (
+        <Text style={styles.notes} numberOfLines={3}>
+          {request.notes}
+        </Text>
+      ) : null}
+      {request.image_url ? (
+        <Image
+          contentFit="cover"
+          source={{ uri: request.image_url }}
+          style={styles.requestImage}
+        />
+      ) : null}
       <View style={styles.infoRow}>
         <Ionicons
           name="location-outline"
@@ -259,6 +304,20 @@ function MapPreview() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.homeBackground },
   scrollContent: { paddingBottom: 26 },
+  submissions: { gap: 14, padding: 16 },
+  submissionsHeader: { alignItems: "center", flexDirection: "row", gap: 8 },
+  submissionsTitle: {
+    color: Colors.cardTextPrimary,
+    flex: 1,
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  submissionsCount: {
+    color: Colors.forestGreen,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  refreshError: { color: Colors.error, fontSize: 13 },
   mapSection: {
     position: "relative",
     overflow: "hidden",
@@ -424,8 +483,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   sheet: {
-    marginHorizontal: 20,
-    marginTop: -48,
+    marginHorizontal: 0,
+    marginTop: 0,
     padding: 18,
     borderRadius: 24,
     backgroundColor: Colors.surface,
@@ -471,6 +530,8 @@ const styles = StyleSheet.create({
   },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   infoText: { color: Colors.cardTextSecondary, fontSize: 12, flex: 1 },
+  notes: { color: Colors.cardTextSecondary, fontSize: 13, lineHeight: 19 },
+  requestImage: { width: "100%", height: 150, borderRadius: 12 },
   progressTrack: {
     height: 8,
     borderRadius: 4,
