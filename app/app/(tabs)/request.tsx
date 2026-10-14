@@ -2,10 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
+import MapSelector from "@/components/MapSelector";
 import {
   DEFAULT_MAP_COORDINATE,
   LocationPickerModal,
@@ -40,6 +43,8 @@ export default function RequestScreen() {
     ...DEFAULT_MAP_COORDINATE,
   });
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const [mapMessage, setMapMessage] = useState("");
+  const [resolvingLocation, setResolvingLocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -106,6 +111,42 @@ export default function RequestScreen() {
     }
   };
 
+  const selectMapPoint = async (point: { latitude: number; longitude: number }) => {
+    setLocation((current) => ({ ...current, ...point, address: "" }));
+    setMapMessage("Finding address…");
+    setSubmitError("");
+    setResolvingLocation(true);
+    try {
+      if (Platform.OS === "android") {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (!permission.granted) {
+          throw new Error("Allow location access to find an address for this map point.");
+        }
+      }
+
+      const [result] = await Location.reverseGeocodeAsync(point);
+      if (!result) throw new Error("No address found. Try another point or use the location editor.");
+
+      const street = [result.streetNumber, result.street].filter(Boolean).join(" ");
+      const address = result.formattedAddress || [
+        street || result.name,
+        result.district,
+        result.city,
+        result.region,
+        result.postalCode,
+        result.country,
+      ].filter((part, index, all) => Boolean(part) && all.indexOf(part) === index).join(", ");
+      if (!address) throw new Error("No address found. Try another point or use the location editor.");
+
+      setLocation((current) => ({ ...current, address }));
+      setMapMessage("");
+    } catch (error) {
+      setMapMessage(error instanceof Error ? error.message : "Could not find this address.");
+    } finally {
+      setResolvingLocation(false);
+    }
+  };
+
   return (
     <View style={styles.screen}>
       <View
@@ -134,8 +175,12 @@ export default function RequestScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.locationMap}>
-          <View style={styles.mapPin}>
-            <Ionicons name="location" size={27} color="#FFFFFF" />
+          <View style={styles.mapCanvas}>
+            <MapSelector
+              selectedPoint={location}
+              onSelectPoint={(point) => void selectMapPoint(point)}
+              onMapLoadError={setMapMessage}
+            />
           </View>
           <View style={styles.locationCard}>
             <View style={styles.locationIcon}>
@@ -148,7 +193,9 @@ export default function RequestScreen() {
             <View style={styles.locationCopy}>
               <Text style={styles.locationTitle}>Pickup Location</Text>
               <Text style={styles.locationAddress}>
-                {location.address || "Select a pickup address from the map"}
+                {resolvingLocation
+                  ? "Finding address…"
+                  : location.address || "Tap the map to select a pickup address"}
               </Text>
             </View>
             <Pressable
@@ -159,6 +206,11 @@ export default function RequestScreen() {
               <Ionicons name="pencil" size={22} color={Colors.forestGreen} />
             </Pressable>
           </View>
+          {mapMessage ? (
+            <View pointerEvents="none" style={styles.mapMessage}>
+              <Text style={styles.mapMessageText}>{mapMessage}</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.section}>
@@ -365,25 +417,29 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     height: 240,
     justifyContent: "flex-end",
+    overflow: "hidden",
     padding: 14,
     position: "relative",
   },
-  mapPin: {
-    alignItems: "center",
-    backgroundColor: Colors.coral,
-    borderRadius: 32,
-    elevation: 4,
-    height: 56,
-    justifyContent: "center",
+  mapCanvas: {
+    ...StyleSheet.absoluteFill,
+    bottom: 0,
+  },
+  mapMessage: {
     position: "absolute",
-    shadowColor: Colors.coral,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    top: 90,
     alignSelf: "center",
-    width: 56,
-    zIndex: 1,
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderRadius: 10,
+    bottom: 108,
+    maxWidth: "90%",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    zIndex: 2,
+  },
+  mapMessageText: {
+    color: Colors.cardTextSecondary,
+    fontSize: 12,
+    textAlign: "center",
   },
   locationCard: {
     alignItems: "center",
