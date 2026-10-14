@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
+import { uploadImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 
 const HEADER_EXTRA_PADDING = 8;
@@ -30,6 +31,7 @@ export default function RequestScreen() {
   const insets = useSafeAreaInsets();
   const [wasteType, setWasteType] = useState("General");
   const [notes, setNotes] = useState("");
+  const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [location, setLocation] = useState({
     address: "31/2, Seevali Mawatha, Malabe",
     latitude: 6.9271,
@@ -55,35 +57,49 @@ export default function RequestScreen() {
         return;
       }
 
+      const image_url = photo
+        ? await uploadImage("pickup_requests", data.user.id, photo)
+        : null;
+
       const { error } = await supabase.from("pickup_requests").insert({
         resident_id: data.user.id,
         category: wasteType,
         status: "pending",
         location: location.address.trim(),
         notes: notes.trim() || null,
+        image_url,
       });
       if (error) throw error;
 
+      setWasteType("General");
       setNotes("");
-      Alert.alert(
-        "Request submitted",
-        `${wasteType} pickup requested for ${location.address.trim()}.`,
-        [
-          { text: "Done", style: "cancel" },
-          {
-            text: "Track request",
-            onPress: () => router.push("/(tabs)/track"),
-          },
-        ],
-      );
+      setPhoto(null);
+      router.replace("/(tabs)/home");
+    } catch (error) {
+      setSubmitError(formatSubmitError(error));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const choosePhoto = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.8,
+        base64: true,
+      });
+      if (!result.canceled) {
+        setPhoto(result.assets[0]);
+        setSubmitError("");
+      }
     } catch (error) {
       setSubmitError(
         error instanceof Error
           ? error.message
-          : "We couldn't submit your request. Please try again.",
+          : "Could not open the photo library. Please try again.",
       );
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -201,21 +217,46 @@ export default function RequestScreen() {
           <Text style={styles.sectionTitle}>Add Photo (Optional)</Text>
           <Pressable
             accessibilityLabel="Upload a photo"
-            style={styles.uploadArea}
+            accessibilityRole="button"
+            disabled={submitting}
+            onPress={() => void choosePhoto()}
+            style={[styles.uploadArea, photo && styles.uploadAreaSelected]}
           >
-            <View style={styles.uploadIcon}>
-              <Ionicons
-                name="camera-outline"
-                size={35}
-                color={Colors.forestGreen}
-              />
-            </View>
-            <Text style={styles.uploadTitle}>Tap to upload a photo</Text>
-            <Text style={styles.uploadDescription}>
-              Helps our team prepare the right{"\n"}equipment.
-            </Text>
-            <View style={styles.uploadDecoration} />
+            {photo ? (
+              <>
+                <Image
+                  contentFit="cover"
+                  source={{ uri: photo.uri }}
+                  style={styles.photoPreview}
+                />
+                <Text style={styles.uploadTitle}>Tap to change photo</Text>
+              </>
+            ) : (
+              <>
+                <View style={styles.uploadIcon}>
+                  <Ionicons
+                    name="camera-outline"
+                    size={35}
+                    color={Colors.forestGreen}
+                  />
+                </View>
+                <Text style={styles.uploadTitle}>Tap to upload a photo</Text>
+                <Text style={styles.uploadDescription}>
+                  Helps our team prepare the right{"\n"}equipment.
+                </Text>
+                <View style={styles.uploadDecoration} />
+              </>
+            )}
           </Pressable>
+          {photo ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setPhoto(null)}
+              style={styles.removePhotoButton}
+            >
+              <Text style={styles.removePhotoText}>Remove photo</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={styles.notesSection}>
@@ -363,6 +404,31 @@ export default function RequestScreen() {
   );
 }
 
+function formatSubmitError(error: unknown) {
+  if (typeof error !== "object" || error === null) {
+    return "We couldn't submit your request. Please try again.";
+  }
+
+  const databaseError = error as {
+    code?: string;
+    message?: string;
+    details?: string;
+    hint?: string;
+  };
+  const code = databaseError.code;
+  const detail = [databaseError.message, databaseError.details, databaseError.hint]
+    .filter(Boolean)
+    .join(" — ");
+
+  if (code === "PGRST204" || code === "42703") {
+    return `The pickup_requests.image_url column is missing or not in the API schema cache. Apply migration 20261014000008_pickup_request_image_uploads.sql, then reload the Supabase schema cache. ${detail}`;
+  }
+  if (code === "42501") {
+    return `Supabase denied saving this pickup request. Apply migration 20261014000009_fix_pickup_request_insert.sql and confirm you are signed in. ${detail}`;
+  }
+  return [code, detail].filter(Boolean).join(" — ") || "We couldn't submit your request. Please try again.";
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.homeBackground },
   header: {
@@ -498,6 +564,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     paddingTop: 5,
   },
+  uploadAreaSelected: { height: 210, paddingTop: 0 },
+  photoPreview: { height: 150, width: "100%" },
   uploadIcon: {
     alignItems: "center",
     backgroundColor: Colors.surface,
@@ -533,6 +601,8 @@ const styles = StyleSheet.create({
     right: -30,
     width: 108,
   },
+  removePhotoButton: { alignSelf: "flex-end", marginTop: -20 },
+  removePhotoText: { color: Colors.error, fontSize: 13, fontWeight: "600" },
   notesSection: { gap: 9 },
   notesLabel: {
     color: Colors.cardTextSecondary,

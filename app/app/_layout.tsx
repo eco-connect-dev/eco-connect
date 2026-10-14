@@ -30,6 +30,7 @@ export default function RootLayout() {
       <Stack.Screen name="council-edit-profile" options={{ headerShown: false }}/>
       <Stack.Screen name="item-detail-pickup" options={{ headerShown: false }} />
       <Stack.Screen name="item-detail-report" options={{ headerShown: false }} />
+      <Stack.Screen name="council-community-post-detail" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" options={{ title: "Not found" }} />
     </Stack>
   );

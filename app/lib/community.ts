@@ -16,10 +16,23 @@ export async function getCommunityPosts() {
     .select(
       "id, author_id, author_name, description, location, image_url, created_at",
     )
+    .eq("deleted", 0)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
   return (data ?? []) as CommunityPost[];
+}
+
+export async function getCommunityPost(postId: string): Promise<CommunityPost> {
+  const { data, error } = await supabase
+    .from("community_posts")
+    .select("id, author_id, author_name, description, location, image_url, created_at")
+    .eq("id", postId)
+    .eq("deleted", 0)
+    .single();
+
+  if (error) throw error;
+  return data as CommunityPost;
 }
 
 export async function createCommunityPost({
@@ -51,6 +64,23 @@ export async function createCommunityPost({
 
   if (error) throw error;
   return data as CommunityPost;
+}
+
+export async function deleteCommunityPost(postId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from("community_posts")
+    .update({ deleted: 1 })
+    .eq("id", postId)
+    .eq("deleted", 0)
+    .select("id, deleted")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error([error.code, error.message, error.details].filter(Boolean).join(" — "));
+  }
+  if (!data || data.deleted !== 1) {
+    throw new Error("Supabase did not update this post. Check that migration 20261014000005 has been applied and that your account can update community_posts.deleted.");
+  }
 }
 
 export function getPostTimeLabel(createdAt: string) {

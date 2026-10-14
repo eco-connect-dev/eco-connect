@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -26,12 +27,14 @@ const STATUS_LABELS: Record<RequestStatus, string> = {
   in_review: "In review",
   assigned: "Assigned",
   resolved: "Resolved",
+  rejected: "Rejected",
 };
 const STATUS_STEPS: RequestStatus[] = [
   "pending",
   "in_review",
   "assigned",
   "resolved",
+  "rejected",
 ];
 
 export default function TrackingDetailScreen() {
@@ -195,6 +198,7 @@ export default function TrackingDetailScreen() {
                 <Text style={styles.notesText}>{request.notes}</Text>
               </View>
             ) : null}
+            {request.image_url ? <Image contentFit="cover" source={{ uri: request.image_url }} style={styles.reportImage} /> : null}
           </View>
         </ScrollView>
       )}
@@ -301,6 +305,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   notesText: { color: Colors.cardTextSecondary, fontSize: 13, lineHeight: 19 },
+  reportImage: { width: "100%", height: 220, borderRadius: 12, marginTop: 12 },
   error: { color: Colors.error, fontSize: 14, textAlign: "center" },
   retry: { padding: 12 },
   retryText: { color: Colors.forestGreen, fontWeight: "700" },

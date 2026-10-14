@@ -1,19 +1,44 @@
-import { router, Tabs } from "expo-router";
+import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
 
 import { Colors } from "@/constants/Colors";
+import { AppRole, readUserRole } from "@/lib/userRole";
+import { supabase } from "@/lib/supabase";
 
 const NAV_EXTRA_PADDING = 12;
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const [dashboardMenuVisible, setDashboardMenuVisible] = useState(false);
+  const [role, setRole] = useState<AppRole | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const loadRole = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        if (active) setRole(null);
+        return;
+      }
+      try {
+        const nextRole = await readUserRole(data.session.user.id);
+        if (active) setRole(nextRole);
+      } catch {
+        if (active) setRole("user");
+      }
+    };
+    void loadRole();
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      setTimeout(() => void loadRole(), 0);
+    });
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
-    <>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -93,6 +118,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="profile"
           options={{
+            href: role === "council" || role === "admin" ? null : undefined,
             title: "Profile",
             tabBarIcon: ({ focused, color }) => (
               <Ionicons
@@ -103,115 +129,41 @@ export default function TabLayout() {
             ),
           }}
         />
-        <Tabs.Screen name="admin-dashboard" options={{ href: null }} />
-        <Tabs.Screen name="council-dashboard" options={{ href: null }} />
         <Tabs.Screen
-          name="more"
-          options={{
-            title: "More",
-            tabBarButton: () => (
-              <Pressable
-                accessibilityLabel="More dashboard options"
-                accessibilityRole="button"
-                onPress={() => setDashboardMenuVisible(true)}
-                style={styles.moreButton}
-              >
-                <Ionicons
-                  name="ellipsis-horizontal"
-                  size={22}
-                  color={Colors.textSecondary}
-                />
-                <Text style={styles.moreLabel}>More</Text>
-              </Pressable>
-            ),
-          }}
+          name="council-dashboard"
+          options={
+            role === "council"
+              ? {
+                  title: "Council Dashboard",
+                  tabBarIcon: ({ focused, color }) => (
+                    <Ionicons
+                      name={focused ? "grid" : "grid-outline"}
+                      size={22}
+                      color={color}
+                    />
+                  ),
+                }
+              : { href: null }
+          }
         />
+        <Tabs.Screen
+          name="admin-dashboard"
+          options={
+            role === "admin"
+              ? {
+                  title: "Admin Dashboard",
+                  tabBarIcon: ({ focused, color }) => (
+                    <Ionicons
+                      name={focused ? "grid" : "grid-outline"}
+                      size={22}
+                      color={color}
+                    />
+                  ),
+                }
+              : { href: null }
+          }
+        />
+        <Tabs.Screen name="more" options={{ href: null }} />
       </Tabs>
-
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setDashboardMenuVisible(false)}
-        transparent
-        visible={dashboardMenuVisible}
-      >
-        <View style={styles.modalRoot}>
-          <Pressable
-            accessibilityLabel="Close dashboard options"
-            onPress={() => setDashboardMenuVisible(false)}
-            style={styles.modalBackdrop}
-          />
-          <View style={styles.menu}>
-            <Text style={styles.menuTitle}>Choose a dashboard</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setDashboardMenuVisible(false);
-                router.push("/(tabs)/admin-dashboard");
-              }}
-              style={styles.menuOption}
-            >
-              <Text style={styles.menuOptionText}>Admin Dashboard</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setDashboardMenuVisible(false);
-                router.push("/(tabs)/council-dashboard");
-              }}
-              style={styles.menuOption}
-            >
-              <Text style={styles.menuOptionText}>Council Dashboard</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-    </>
   );
 }
-
-const styles = StyleSheet.create({
-  moreButton: {
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "center",
-    gap: 3,
-  },
-  moreLabel: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  modalRoot: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
-  },
-  menu: {
-    backgroundColor: Colors.homeBackground,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    gap: 8,
-    padding: 20,
-    paddingBottom: 32,
-  },
-  menuTitle: {
-    color: Colors.cardTextPrimary,
-    fontSize: 17,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  menuOption: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  menuOptionText: {
-    color: Colors.cardTextPrimary,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-});

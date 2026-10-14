@@ -4,14 +4,14 @@ import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from "r
 import { Colors } from "@/constants/Colors";
 import { ItemStatus, StatusBadge } from "./StatusBadge";
 
-const SELECTABLE_STATUSES: ItemStatus[] = ["assigned", "rejected", "completed"];
+const SELECTABLE_STATUSES: ItemStatus[] = ["pending", "under_review", "assigned", "rejected", "completed"];
 
 const STATUS_LABEL: Record<ItemStatus, string> = {
     pending: "Pending",
     under_review: "Under Review",
     assigned: "Assigned",
     rejected: "Rejected",
-    completed: "Completed",
+    completed: "Resolved",
 };
 
 type Anchor = { top: number; right: number };

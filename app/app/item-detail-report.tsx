@@ -1,47 +1,53 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useState } from "react";
+import { Image } from "expo-image";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { StatusDropdown } from "@/components/council/StatusDropdown";
 import { ItemStatus, StatusBadge } from "@/components/council/StatusBadge";
 import { Colors } from "@/constants/Colors";
+import { getCouncilRequest, TrackedRequest, updateCouncilRequestStatus } from "@/lib/tracking";
 
 const HEADER_EXTRA_PADDING = 8;
-
-type Severity = "low" | "medium" | "high";
-
-const SEVERITY_LABEL: Record<Severity, string> = {
-    low: "Low",
-    medium: "Medium",
-    high: "High",
-};
-
-const SEVERITY_COLOR: Record<Severity, string> = {
-    low: Colors.statusPendingText,
-    medium: Colors.statusReviewText,
-    high: Colors.statusRejectedText,
-};
-
-// TODO: replace with data fetched via the item id (route param) from Supabase
-const REPORT = {
-    title: "Illegal Dumping: Construction Debris",
-    wasteCategory: "Illegal Dumping",
-    severity: "high" as Severity,
-    reportedDate: "Aug 11, 2026, 03:12 PM",
-    location: "450 Industrial Rd, Industrial Zone",
-    mapLabel: "Industrial Zone Map",
-    description:
-        "Large pile of construction debris and broken tiles dumped at the roadside, partially blocking the drainage canal. Reported by multiple nearby residents over the past two days.",
-    reportedByName: "Anonymous Resident",
-    reportedByContact: "Submitted via app • No contact shared",
-    photoCount: 3,
-};
 
 export default function ItemDetailReportScreen() {
     const insets = useSafeAreaInsets();
     const [status, setStatus] = useState<ItemStatus>("under_review");
+    const [report, setReport] = useState<TrackedRequest | null>(null);
+    const [error, setError] = useState("");
+    const [saving, setSaving] = useState(false);
+    const { id } = useLocalSearchParams<{ id: string }>();
+
+    useEffect(() => {
+        if (!id) return;
+        let active = true;
+        void getCouncilRequest("dumping_reports", id)
+            .then((item) => {
+                if (!active) return;
+                setReport(item);
+                setStatus(item.status === "in_review" ? "under_review" : item.status === "resolved" ? "completed" : item.status);
+            })
+            .catch((loadError: unknown) => { if (active) setError(loadError instanceof Error ? loadError.message : "Couldn't load this dumping report."); });
+        return () => { active = false; };
+    }, [id]);
+
+    const saveStatus = async (nextStatus: ItemStatus, returnToDashboard = false) => {
+        if (!id || saving) return;
+        setSaving(true);
+        setError("");
+        try {
+            const updated = await updateCouncilRequestStatus("dumping_reports", id, nextStatus);
+            setReport(updated);
+            setStatus(nextStatus);
+            if (returnToDashboard) router.replace("/(tabs)/council-dashboard");
+        } catch (saveError) {
+            setError(saveError instanceof Error ? saveError.message : "Couldn't update the report status.");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     return (
         <View style={styles.screen}>
@@ -59,18 +65,8 @@ export default function ItemDetailReportScreen() {
                 <View style={styles.heroSection}>
                     <View style={styles.heroBadgeRow}>
                         <StatusBadge status={status} />
-                        <View
-                            style={[
-                                styles.severityBadge,
-                                { borderColor: SEVERITY_COLOR[REPORT.severity] },
-                            ]}
-                        >
-                            <Text style={[styles.severityText, { color: SEVERITY_COLOR[REPORT.severity] }]}>
-                                {SEVERITY_LABEL[REPORT.severity].toUpperCase()} SEVERITY
-                            </Text>
-                        </View>
                     </View>
-                    <Text style={styles.title}>{REPORT.title}</Text>
+                    <Text style={styles.title}>{report?.category ?? "Loading dumping report…"}</Text>
                 </View>
 
                 <View style={styles.divider} />
@@ -79,22 +75,22 @@ export default function ItemDetailReportScreen() {
                 <View style={styles.rowsSection}>
                     <View style={styles.row}>
                         <Text style={styles.rowLabel}>Category</Text>
-                        <Text style={styles.rowValueBold}>{REPORT.wasteCategory}</Text>
+                        <Text style={styles.rowValueBold}>{report?.category ?? "Loading…"}</Text>
                     </View>
 
                     <View style={styles.row}>
                         <Text style={styles.rowLabel}>Current Status</Text>
-                        <StatusDropdown status={status} onChange={setStatus} />
+                        <StatusDropdown status={status} onChange={saveStatus} />
                     </View>
 
                     <View style={styles.row}>
                         <Text style={styles.rowLabel}>Reported Date</Text>
-                        <Text style={styles.rowValue}>{REPORT.reportedDate}</Text>
+                        <Text style={styles.rowValue}>{report ? new Date(report.submitted_at).toLocaleString() : "Loading…"}</Text>
                     </View>
 
                     <View style={styles.row}>
                         <Text style={styles.rowLabel}>Photo Evidence</Text>
-                        <Text style={styles.rowValueBold}>{REPORT.photoCount} photo(s) attached</Text>
+                        <Text style={styles.rowValueBold}>No photo details available</Text>
                     </View>
                 </View>
 
@@ -103,11 +99,11 @@ export default function ItemDetailReportScreen() {
                 {/* Location */}
                 <View style={styles.locationSection}>
                     <Text style={styles.sectionLabel}>Reported Location</Text>
-                    <Text style={styles.locationAddress}>{REPORT.location}</Text>
+                    <Text style={styles.locationAddress}>{report?.location ?? "Loading location…"}</Text>
                     <View style={styles.mapPlaceholder}>
                         <View style={styles.mapLabelPill}>
                             <Ionicons name="location" size={14} color={Colors.councilTextPrimary} />
-                            <Text style={styles.mapLabelText}>{REPORT.mapLabel}</Text>
+                            <Text style={styles.mapLabelText}>{report?.location ?? "Reported location"}</Text>
                         </View>
                     </View>
                 </View>
@@ -115,22 +111,19 @@ export default function ItemDetailReportScreen() {
                 {/* Description */}
                 <View style={styles.descriptionSection}>
                     <Text style={styles.sectionLabel}>Report Description</Text>
-                    <Text style={styles.descriptionText}>{REPORT.description}</Text>
+                    <Text style={styles.descriptionText}>{report?.notes || "No additional notes provided."}</Text>
                 </View>
+                {report?.image_url ? <Image contentFit="cover" source={{ uri: report.image_url }} style={styles.reportImage} /> : null}
 
                 {/* Reported by */}
-                <View style={styles.submitterCard}>
-                    <Text style={styles.submitterLabel}>REPORTED BY</Text>
-                    <Text style={styles.submitterName}>{REPORT.reportedByName}</Text>
-                    <Text style={styles.submitterContact}>{REPORT.reportedByContact}</Text>
-                </View>
+                {error ? <Text style={styles.submitterContact}>{error}</Text> : null}
 
                 {/* Actions */}
                 <View style={styles.actions}>
-                    <Pressable style={styles.primaryButton} onPress={() => setStatus("assigned")}>
-                        <Text style={styles.primaryButtonText}>Dispatch Cleanup Crew</Text>
+                    <Pressable style={styles.primaryButton} disabled={saving} onPress={() => void saveStatus("assigned", true)}>
+                        <Text style={styles.primaryButtonText}>{saving ? "Saving…" : "Dispatch Cleanup Crew"}</Text>
                     </Pressable>
-                    <Pressable style={styles.secondaryButton} onPress={() => setStatus("rejected")}>
+                    <Pressable style={styles.secondaryButton} disabled={saving} onPress={() => void saveStatus("rejected", true)}>
                         <Text style={styles.secondaryButtonText}>Reject / Close</Text>
                     </Pressable>
                 </View>
@@ -268,6 +261,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         color: Colors.councilTextPrimary,
     },
+    reportImage: { width: "100%", height: 240, borderRadius: 8 },
     submitterCard: {
         backgroundColor: Colors.surface,
         borderWidth: 1,

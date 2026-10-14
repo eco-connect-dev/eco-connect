@@ -27,6 +27,7 @@ const STATUS_LABELS: Record<RequestStatus, string> = {
   in_review: "Being reviewed",
   assigned: "Crew assigned",
   resolved: "Request completed",
+  rejected: "Request rejected",
 };
 
 const STATUS_PROGRESS: Record<RequestStatus, number> = {
@@ -34,6 +35,7 @@ const STATUS_PROGRESS: Record<RequestStatus, number> = {
   in_review: 0.5,
   assigned: 0.75,
   resolved: 1,
+  rejected: 1,
 };
 
 export default function TrackScreen() {
