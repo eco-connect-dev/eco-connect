@@ -15,9 +15,12 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
+import {
+  DEFAULT_MAP_COORDINATE,
+  LocationPickerModal,
+} from "@/components/LocationPickerModal";
 import { submitDumpingReport } from "@/lib/tracking";
 import { uploadImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
@@ -25,9 +28,10 @@ import { supabase } from "@/lib/supabase";
 const CATEGORIES = ["Illegal dumping", "Street litter", "Overflowing bin"];
 
 export default function DumpingReportScreen() {
-  const insets = useSafeAreaInsets();
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [location, setLocation] = useState("");
+  const [mapPoint, setMapPoint] = useState(DEFAULT_MAP_COORDINATE);
+  const [mapPickerVisible, setMapPickerVisible] = useState(false);
   const [notes, setNotes] = useState("");
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -96,22 +100,6 @@ export default function DumpingReportScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.screen}
     >
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable
-          accessibilityLabel="Go back"
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Ionicons
-            name="chevron-back"
-            size={22}
-            color={Colors.cardTextSecondary}
-          />
-        </Pressable>
-        <Text style={styles.headerTitle}>Report an issue</Text>
-        <View style={styles.backButton} />
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -147,6 +135,14 @@ export default function DumpingReportScreen() {
           </View>
 
           <Text style={styles.label}>Location</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setMapPickerVisible(true)}
+            style={styles.mapButton}
+          >
+            <Ionicons name="map-outline" size={19} color={Colors.forestGreen} />
+            <Text style={styles.mapButtonText}>Choose location from map</Text>
+          </Pressable>
           <TextInput
             autoCapitalize="words"
             onChangeText={(value) => {
@@ -204,30 +200,23 @@ export default function DumpingReportScreen() {
           </Text>
         </Pressable>
       </ScrollView>
+      <LocationPickerModal
+        visible={mapPickerVisible}
+        initialPoint={mapPoint}
+        onClose={() => setMapPickerVisible(false)}
+        onSelect={(selected) => {
+          setMapPoint(selected);
+          setLocation(selected.address);
+          setMapPickerVisible(false);
+          setError("");
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.homeBackground },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    color: Colors.cardTextSecondary,
-    fontSize: 19,
-    fontWeight: "700",
-  },
   content: { padding: 20, paddingBottom: 32, gap: 16 },
   intro: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20 },
   card: {
@@ -271,6 +260,18 @@ const styles = StyleSheet.create({
     color: Colors.cardTextSecondary,
     fontSize: 14,
   },
+  mapButton: {
+    alignItems: "center",
+    backgroundColor: "#EAFBF3",
+    borderColor: Colors.forestGreen,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 9,
+    minHeight: 46,
+    paddingHorizontal: 12,
+  },
+  mapButtonText: { color: Colors.forestGreen, fontSize: 14, fontWeight: "700" },
   notesInput: { minHeight: 130, paddingTop: 12 },
   photoPicker: {
     alignItems: "center",

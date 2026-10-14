@@ -48,16 +48,26 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 20 : 0}
       style={styles.screen}
     >
       {/* Decorative background blobs, mirrors Figma */}
       <View style={styles.blobTop} pointerEvents="none" />
       <View style={styles.blobBottom} pointerEvents="none" />
+      <Image
+        accessible={false}
+        pointerEvents="none"
+        source={require("@/assets/images/login-illustration.png")}
+        style={styles.pageWatermark}
+        contentFit="cover"
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         {/* Logo & header */}
         <View style={styles.logoWrap}>
@@ -68,15 +78,6 @@ export default function LoginScreen() {
           />
           <Text style={styles.title}>EcoConnect</Text>
           <Text style={styles.tagline}>Cleaner City, Together</Text>
-        </View>
-
-        {/* Illustration */}
-        <View style={styles.illustrationWrap}>
-          <Image
-            source={require("@/assets/images/login-illustration.png")}
-            style={styles.illustration}
-            contentFit="cover"
-          />
         </View>
 
         {/* Login card */}
@@ -107,7 +108,7 @@ export default function LoginScreen() {
             ) : null}
 
             <AuthButton
-              label="Get Started"
+              label="Login"
               icon="arrow-forward"
               loading={submitting}
               onPress={handleLogin}
@@ -128,15 +129,6 @@ export default function LoginScreen() {
                 iconPosition="left"
                 variant="secondary"
                 tintColor={Colors.forestGreen}
-              />
-            </Link>
-            <Link href="./onboarding/staff-login" asChild>
-              <AuthButton
-                label="Staff Login"
-                icon="briefcase-outline"
-                iconPosition="left"
-                variant="secondary"
-                style={{ marginTop: 12 }}
               />
             </Link>
           </View>
@@ -169,11 +161,19 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     backgroundColor: Colors.blobCoral,
   },
+  pageWatermark: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    opacity: 0.1,
+  },
   scrollContent: {
     flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: 16,
-    paddingTop: 48,
-    paddingBottom: 32,
+    paddingVertical: 24,
     alignItems: "center",
   },
   logoWrap: {
@@ -196,21 +196,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: Colors.textSecondary,
   },
-  illustrationWrap: {
-    width: "100%",
-    maxWidth: 280,
-    marginTop: 32,
-  },
-  illustration: {
-    width: "100%",
-    aspectRatio: 4 / 3,
-    borderRadius: 16,
-    backgroundColor: Colors.divider,
-  },
   card: {
+    position: "relative",
     width: "100%",
-    marginTop: 32,
-    backgroundColor: Colors.surface,
+    maxWidth: 440,
+    marginTop: 24,
+    backgroundColor: "rgba(255,255,255,0.94)",
     borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#37474F",

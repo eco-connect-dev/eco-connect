@@ -6,7 +6,6 @@ import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +16,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
+import {
+  DEFAULT_MAP_COORDINATE,
+  LocationPickerModal,
+} from "@/components/LocationPickerModal";
 import { uploadImage } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 
@@ -33,19 +36,19 @@ export default function RequestScreen() {
   const [notes, setNotes] = useState("");
   const [photo, setPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [location, setLocation] = useState({
-    address: "31/2, Seevali Mawatha, Malabe",
-    latitude: 6.9271,
-    longitude: 79.8612,
+    address: "",
+    ...DEFAULT_MAP_COORDINATE,
   });
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
-  const [locationDraft, setLocationDraft] = useState(location);
-  const [pinPosition, setPinPosition] = useState({ x: 51, y: 49 });
-  const [mapWidth, setMapWidth] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
   const handleSubmit = async () => {
     if (submitting) return;
+    if (!location.address.trim()) {
+      setSubmitError("Choose a pickup address from the map before submitting.");
+      return;
+    }
 
     setSubmitting(true);
     setSubmitError("");
@@ -103,27 +106,6 @@ export default function RequestScreen() {
     }
   };
 
-  const openLocationPicker = () => {
-    setLocationDraft(location);
-    setIsLocationPickerOpen(true);
-  };
-
-  const selectMapLocation = (x: number, y: number) => {
-    const latitude = 6.955 - y * 0.00055;
-    const longitude = 79.835 + x * 0.00055;
-    setPinPosition({ x, y });
-    setLocationDraft({
-      address: `Selected map location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
-      latitude,
-      longitude,
-    });
-  };
-
-  const saveLocation = () => {
-    setLocation(locationDraft);
-    setIsLocationPickerOpen(false);
-  };
-
   return (
     <View style={styles.screen}>
       <View
@@ -165,12 +147,14 @@ export default function RequestScreen() {
             </View>
             <View style={styles.locationCopy}>
               <Text style={styles.locationTitle}>Pickup Location</Text>
-              <Text style={styles.locationAddress}>{location.address}</Text>
+              <Text style={styles.locationAddress}>
+                {location.address || "Select a pickup address from the map"}
+              </Text>
             </View>
             <Pressable
               accessibilityLabel="Edit pickup location"
               hitSlop={8}
-              onPress={openLocationPicker}
+              onPress={() => setIsLocationPickerOpen(true)}
             >
               <Ionicons name="pencil" size={22} color={Colors.forestGreen} />
             </Pressable>
@@ -304,102 +288,15 @@ export default function RequestScreen() {
         ) : null}
       </ScrollView>
 
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setIsLocationPickerOpen(false)}
-        transparent
+      <LocationPickerModal
         visible={isLocationPickerOpen}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.locationModal}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Choose pickup location</Text>
-                <Text style={styles.modalSubtitle}>
-                  Tap the map or enter an address below.
-                </Text>
-              </View>
-              <Pressable
-                accessibilityLabel="Close location picker"
-                hitSlop={8}
-                onPress={() => setIsLocationPickerOpen(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons
-                  name="close"
-                  size={20}
-                  color={Colors.cardTextSecondary}
-                />
-              </Pressable>
-            </View>
-
-            <Pressable
-              accessibilityLabel="Map. Tap to choose a pickup point"
-              onPress={(event) => {
-                const { locationX, locationY } = event.nativeEvent;
-                selectMapLocation(
-                  (locationX / mapWidth) * 100,
-                  (locationY / 230) * 100,
-                );
-              }}
-              onLayout={(event) => setMapWidth(event.nativeEvent.layout.width)}
-              style={styles.mapPicker}
-            >
-              <View style={styles.mapRoadHorizontal} />
-              <View style={styles.mapRoadVertical} />
-              <View style={styles.mapRoadDiagonal} />
-              <View style={styles.mapParkOne} />
-              <View style={styles.mapParkTwo} />
-              <View
-                style={[
-                  styles.selectedPin,
-                  { left: `${pinPosition.x}%`, top: `${pinPosition.y}%` },
-                ]}
-              >
-                <Ionicons name="location" size={25} color="#FFFFFF" />
-              </View>
-              <View style={styles.mapHint}>
-                <Ionicons
-                  name="hand-left-outline"
-                  size={14}
-                  color={Colors.cardTextSecondary}
-                />
-                <Text style={styles.mapHintText}>Tap to place pin</Text>
-              </View>
-            </Pressable>
-
-            <View style={styles.coordinateRow}>
-              <Ionicons
-                name="navigate-outline"
-                size={16}
-                color={Colors.forestGreen}
-              />
-              <Text style={styles.coordinateText}>
-                {locationDraft.latitude.toFixed(4)},{" "}
-                {locationDraft.longitude.toFixed(4)}
-              </Text>
-            </View>
-            <Text style={styles.addressLabel}>Pickup address</Text>
-            <TextInput
-              autoCapitalize="words"
-              onChangeText={(address) =>
-                setLocationDraft((current) => ({ ...current, address }))
-              }
-              placeholder="Enter a custom address"
-              placeholderTextColor="#98A099"
-              style={styles.addressInput}
-              value={locationDraft.address}
-            />
-            <Pressable
-              accessibilityRole="button"
-              onPress={saveLocation}
-              style={styles.saveLocationButton}
-            >
-              <Text style={styles.saveLocationText}>Use this location</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        initialPoint={location}
+        onClose={() => setIsLocationPickerOpen(false)}
+        onSelect={(selected) => {
+          setLocation(selected);
+          setIsLocationPickerOpen(false);
+        }}
+      />
     </View>
   );
 }
@@ -629,161 +526,4 @@ const styles = StyleSheet.create({
   },
   submitText: { color: "#FFFFFF", fontSize: 19, fontWeight: "700" },
   submitError: { color: Colors.error, fontSize: 13, textAlign: "center" },
-  modalOverlay: {
-    backgroundColor: "rgba(25, 28, 29, 0.4)",
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  locationModal: {
-    backgroundColor: Colors.homeBackground,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    padding: 20,
-    paddingBottom: 30,
-  },
-  modalHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 18,
-  },
-  modalTitle: {
-    color: Colors.cardTextPrimary,
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  modalSubtitle: {
-    color: Colors.cardTextSecondary,
-    fontSize: 13,
-    marginTop: 4,
-  },
-  closeButton: {
-    alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    height: 32,
-    justifyContent: "center",
-    width: 32,
-  },
-  mapPicker: {
-    backgroundColor: "#DDE9D7",
-    borderRadius: 18,
-    height: 230,
-    overflow: "hidden",
-    position: "relative",
-  },
-  mapRoadHorizontal: {
-    backgroundColor: "rgba(255,255,255,0.92)",
-    height: 29,
-    left: -20,
-    position: "absolute",
-    top: 68,
-    transform: [{ rotate: "-8deg" }],
-    width: 410,
-  },
-  mapRoadVertical: {
-    backgroundColor: "rgba(255,255,255,0.92)",
-    height: 290,
-    left: 134,
-    position: "absolute",
-    top: -26,
-    transform: [{ rotate: "29deg" }],
-    width: 25,
-  },
-  mapRoadDiagonal: {
-    backgroundColor: "rgba(255,255,255,0.82)",
-    height: 20,
-    left: -36,
-    position: "absolute",
-    top: 160,
-    transform: [{ rotate: "21deg" }],
-    width: 410,
-  },
-  mapParkOne: {
-    backgroundColor: "#B8DCB7",
-    borderRadius: 60,
-    height: 104,
-    position: "absolute",
-    right: -22,
-    top: -28,
-    width: 137,
-  },
-  mapParkTwo: {
-    backgroundColor: "#C7E5BC",
-    borderRadius: 40,
-    bottom: -16,
-    height: 83,
-    left: -24,
-    position: "absolute",
-    width: 120,
-  },
-  selectedPin: {
-    alignItems: "center",
-    backgroundColor: Colors.coral,
-    borderRadius: 24,
-    height: 48,
-    justifyContent: "center",
-    marginLeft: -24,
-    marginTop: -48,
-    position: "absolute",
-    shadowColor: "#2A180E",
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    width: 48,
-  },
-  mapHint: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.86)",
-    borderRadius: 12,
-    bottom: 10,
-    flexDirection: "row",
-    gap: 5,
-    left: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    position: "absolute",
-  },
-  mapHintText: {
-    color: Colors.cardTextSecondary,
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  coordinateRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-    marginTop: 12,
-  },
-  coordinateText: {
-    color: Colors.cardTextSecondary,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  addressLabel: {
-    color: Colors.cardTextSecondary,
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 14,
-    marginBottom: 7,
-  },
-  addressInput: {
-    backgroundColor: Colors.surface,
-    borderColor: "#E5E7E4",
-    borderRadius: 12,
-    borderWidth: 1,
-    color: Colors.cardTextPrimary,
-    fontSize: 14,
-    minHeight: 48,
-    paddingHorizontal: 13,
-  },
-  saveLocationButton: {
-    alignItems: "center",
-    backgroundColor: Colors.forestGreen,
-    borderRadius: 14,
-    justifyContent: "center",
-    marginTop: 18,
-    minHeight: 50,
-  },
-  saveLocationText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
 });

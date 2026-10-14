@@ -1,18 +1,78 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoticeCard } from "@/components/resident/NoticeCard";
 import { PickupCard } from "@/components/resident/PickupCard";
 import { QuickActionCard } from "@/components/resident/QuickActionCard";
 import { Colors } from "@/constants/Colors";
+import { CommunityPost, getCommunityPosts, getPostTimeLabel } from "@/lib/community";
+import { listMyRequests, TrackedRequest } from "@/lib/tracking";
 
 const HEADER_EXTRA_PADDING = 8;
 
 export default function ResidentHomeScreen() {
   const insets = useSafeAreaInsets();
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [requests, setRequests] = useState<TrackedRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [postError, setPostError] = useState("");
+  const [requestError, setRequestError] = useState("");
+
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    const [postResult, requestResult] = await Promise.allSettled([
+      getCommunityPosts(),
+      listMyRequests(),
+    ]);
+
+    if (postResult.status === "fulfilled") {
+      setPosts(postResult.value.slice(0, 3));
+      setPostError("");
+    } else {
+      setPostError(
+        postResult.reason instanceof Error
+          ? postResult.reason.message
+          : "Could not load community notices.",
+      );
+    }
+
+    if (requestResult.status === "fulfilled") {
+      setRequests(requestResult.value);
+      setRequestError("");
+    } else {
+      setRequestError(
+        requestResult.reason instanceof Error
+          ? requestResult.reason.message
+          : "Could not load pickup requests.",
+      );
+    }
+    setLoading(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadDashboard();
+    }, [loadDashboard]),
+  );
+
+  const nextPickup =
+    requests.find(
+      (item) =>
+        item.source === "pickup_requests" &&
+        item.status !== "resolved" &&
+        item.status !== "rejected",
+    ) ?? requests.find((item) => item.source === "pickup_requests") ?? null;
 
   return (
     <View style={styles.screen}>
@@ -47,11 +107,17 @@ export default function ResidentHomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <PickupCard
-          day="Tomorrow"
-          timeWindow="8:00 AM – 12:00 PM"
-          wasteType="Recycling"
-          onViewDetails={() => router.push("/")}
+          request={nextPickup}
+          loading={loading}
+          onViewDetails={() =>
+            router.push(nextPickup ? "/(tabs)/track" : "/(tabs)/request")
+          }
         />
+        {requestError ? (
+          <Text accessibilityRole="alert" style={styles.dataError}>
+            {requestError}
+          </Text>
+        ) : null}
 
         {/* Quick Actions */}
         <View style={styles.section}>
@@ -66,7 +132,7 @@ export default function ResidentHomeScreen() {
             />
             <QuickActionCard
               icon="alert-circle-outline"
-              label="Report Issue"
+              label="Illegal dump"
               iconBgColor={Colors.quickActionCoralBg}
               iconColor={Colors.coral}
               onPress={() => router.push("/dumping-report")}
@@ -94,22 +160,32 @@ export default function ResidentHomeScreen() {
           </View>
 
           <View style={styles.noticesList}>
-            <NoticeCard
-              icon="calendar-outline"
-              iconBgColor={Colors.noticeIconGreenBg}
-              iconColor={Colors.forestGreen}
-              title="Holiday Schedule Changes"
-              preview="Due to the upcoming national holiday, Friday pickups will be…"
-              timeAgo="2 days ago"
-            />
-            <NoticeCard
-              icon="leaf-outline"
-              iconBgColor={Colors.noticeIconCoralBg}
-              iconColor={Colors.coral}
-              title="New Composting Guidelines"
-              preview="We are now accepting a wider variety of organic waste in the…"
-              timeAgo="5 days ago"
-            />
+            {loading && !posts.length ? (
+              <ActivityIndicator color={Colors.forestGreen} />
+            ) : postError && !posts.length ? (
+              <Text accessibilityRole="alert" style={styles.dataError}>
+                {postError}
+              </Text>
+            ) : posts.length ? (
+              posts.map((post, index) => (
+                <NoticeCard
+                  key={post.id}
+                  icon={post.image_url ? "image-outline" : "people-outline"}
+                  iconBgColor={
+                    index % 2 ? Colors.noticeIconCoralBg : Colors.noticeIconGreenBg
+                  }
+                  iconColor={index % 2 ? Colors.coral : Colors.forestGreen}
+                  title={post.author_name}
+                  preview={post.description || `Community update from ${post.location}`}
+                  timeAgo={getPostTimeLabel(post.created_at)}
+                  onPress={() => router.push("/(tabs)/community")}
+                />
+              ))
+            ) : (
+              <Text style={styles.emptyNotices}>
+                No community notices yet. Be the first to share an update.
+              </Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -207,4 +283,6 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 8,
   },
+  dataError: { color: Colors.error, fontSize: 13 },
+  emptyNotices: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20 },
 });

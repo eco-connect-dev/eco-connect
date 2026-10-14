@@ -14,6 +14,7 @@ const HEADER_EXTRA_PADDING = 8;
 export default function ItemDetailPickupScreen() {
     const insets = useSafeAreaInsets();
     const [status, setStatus] = useState<ItemStatus>("pending");
+    const [savedStatus, setSavedStatus] = useState<ItemStatus>("pending");
     const [request, setRequest] = useState<TrackedRequest | null>(null);
     const [error, setError] = useState("");
     const [saving, setSaving] = useState(false);
@@ -26,21 +27,23 @@ export default function ItemDetailPickupScreen() {
             .then((item) => {
                 if (!active) return;
                 setRequest(item);
-                setStatus(item.status === "in_review" ? "under_review" : item.status === "resolved" ? "completed" : item.status);
+                const loadedStatus = item.status === "in_review" ? "under_review" : item.status === "resolved" ? "completed" : item.status;
+                setStatus(loadedStatus);
+                setSavedStatus(loadedStatus);
             })
             .catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : "Couldn't load this pickup request."));
         return () => { active = false; };
     }, [id]);
 
-    const saveStatus = async (nextStatus: ItemStatus, returnToDashboard = false) => {
-        if (!id || saving) return;
+    const saveStatus = async () => {
+        if (!id || !request || saving || status === savedStatus) return;
         setSaving(true);
         setError("");
         try {
-            const updated = await updateCouncilRequestStatus("pickup_requests", id, nextStatus);
+            const updated = await updateCouncilRequestStatus("pickup_requests", id, status);
             setRequest(updated);
-            setStatus(nextStatus);
-            if (returnToDashboard) router.replace("/(tabs)/council-dashboard");
+            setSavedStatus(status);
+            router.replace("/(tabs)/council-dashboard");
         } catch (saveError) {
             setError(saveError instanceof Error ? saveError.message : "Couldn't update the request status.");
         } finally {
@@ -77,7 +80,7 @@ export default function ItemDetailPickupScreen() {
 
                     <View style={styles.row}>
                         <Text style={styles.rowLabel}>Current Status</Text>
-                        <StatusDropdown status={status} onChange={saveStatus} />
+                        <StatusDropdown status={status} onChange={setStatus} />
                     </View>
 
                     <View style={styles.row}>
@@ -115,11 +118,11 @@ export default function ItemDetailPickupScreen() {
 
                 {/* Actions */}
                 <View style={styles.actions}>
-                    <Pressable style={styles.primaryButton} disabled={saving} onPress={() => void saveStatus("assigned", true)}>
-                        <Text style={styles.primaryButtonText}>{saving ? "Saving…" : "Assign to Municipal Crew"}</Text>
+                    <Pressable style={[styles.primaryButton, (!request || saving || status === savedStatus) && styles.disabledButton]} disabled={!request || saving || status === savedStatus} onPress={() => void saveStatus()}>
+                        <Text style={styles.primaryButtonText}>{saving ? "Saving…" : "Save Changes"}</Text>
                     </Pressable>
-                    <Pressable style={styles.secondaryButton} disabled={saving} onPress={() => void saveStatus("rejected", true)}>
-                        <Text style={styles.secondaryButtonText}>Reject / Close</Text>
+                    <Pressable style={styles.secondaryButton} disabled={saving} onPress={() => router.replace("/(tabs)/council-dashboard")}>
+                        <Text style={styles.secondaryButtonText}>Cancel</Text>
                     </Pressable>
                 </View>
             </ScrollView>
@@ -274,6 +277,9 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         alignItems: "center",
         justifyContent: "center",
+    },
+    disabledButton: {
+        opacity: 0.5,
     },
     primaryButtonText: {
         fontSize: 15,

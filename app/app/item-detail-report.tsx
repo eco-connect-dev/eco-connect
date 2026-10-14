@@ -15,6 +15,7 @@ const HEADER_EXTRA_PADDING = 8;
 export default function ItemDetailReportScreen() {
     const insets = useSafeAreaInsets();
     const [status, setStatus] = useState<ItemStatus>("under_review");
+    const [savedStatus, setSavedStatus] = useState<ItemStatus>("under_review");
     const [report, setReport] = useState<TrackedRequest | null>(null);
     const [error, setError] = useState("");
     const [saving, setSaving] = useState(false);
@@ -27,21 +28,23 @@ export default function ItemDetailReportScreen() {
             .then((item) => {
                 if (!active) return;
                 setReport(item);
-                setStatus(item.status === "in_review" ? "under_review" : item.status === "resolved" ? "completed" : item.status);
+                const loadedStatus = item.status === "in_review" ? "under_review" : item.status === "resolved" ? "completed" : item.status;
+                setStatus(loadedStatus);
+                setSavedStatus(loadedStatus);
             })
             .catch((loadError: unknown) => { if (active) setError(loadError instanceof Error ? loadError.message : "Couldn't load this dumping report."); });
         return () => { active = false; };
     }, [id]);
 
-    const saveStatus = async (nextStatus: ItemStatus, returnToDashboard = false) => {
-        if (!id || saving) return;
+    const saveStatus = async () => {
+        if (!id || !report || saving || status === savedStatus) return;
         setSaving(true);
         setError("");
         try {
-            const updated = await updateCouncilRequestStatus("dumping_reports", id, nextStatus);
+            const updated = await updateCouncilRequestStatus("dumping_reports", id, status);
             setReport(updated);
-            setStatus(nextStatus);
-            if (returnToDashboard) router.replace("/(tabs)/council-dashboard");
+            setSavedStatus(status);
+            router.replace("/(tabs)/council-dashboard");
         } catch (saveError) {
             setError(saveError instanceof Error ? saveError.message : "Couldn't update the report status.");
         } finally {
@@ -80,7 +83,7 @@ export default function ItemDetailReportScreen() {
 
                     <View style={styles.row}>
                         <Text style={styles.rowLabel}>Current Status</Text>
-                        <StatusDropdown status={status} onChange={saveStatus} />
+                        <StatusDropdown status={status} onChange={setStatus} />
                     </View>
 
                     <View style={styles.row}>
@@ -120,11 +123,11 @@ export default function ItemDetailReportScreen() {
 
                 {/* Actions */}
                 <View style={styles.actions}>
-                    <Pressable style={styles.primaryButton} disabled={saving} onPress={() => void saveStatus("assigned", true)}>
-                        <Text style={styles.primaryButtonText}>{saving ? "Saving…" : "Dispatch Cleanup Crew"}</Text>
+                    <Pressable style={[styles.primaryButton, (!report || saving || status === savedStatus) && styles.disabledButton]} disabled={!report || saving || status === savedStatus} onPress={() => void saveStatus()}>
+                        <Text style={styles.primaryButtonText}>{saving ? "Saving…" : "Save Changes"}</Text>
                     </Pressable>
-                    <Pressable style={styles.secondaryButton} disabled={saving} onPress={() => void saveStatus("rejected", true)}>
-                        <Text style={styles.secondaryButtonText}>Reject / Close</Text>
+                    <Pressable style={styles.secondaryButton} disabled={saving} onPress={() => router.replace("/(tabs)/council-dashboard")}>
+                        <Text style={styles.secondaryButtonText}>Cancel</Text>
                     </Pressable>
                 </View>
             </ScrollView>
@@ -294,6 +297,9 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         alignItems: "center",
         justifyContent: "center",
+    },
+    disabledButton: {
+        opacity: 0.5,
     },
     primaryButtonText: {
         fontSize: 15,
