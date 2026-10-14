@@ -108,6 +108,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^8.66.0
         version: 8.66.0(eslint@9.39.5)(typescript@6.0.3)
+      eslint:
+        specifier: 9.39.5
+        version: 9.39.5
       eslint-config-expo:
         specifier: ^57.0.1
         version: 57.0.1(eslint@9.39.5)(typescript@6.0.3)
@@ -6537,7 +6540,9 @@ snapshots:
       metro-runtime: 0.84.4
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

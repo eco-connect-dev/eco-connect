@@ -39,6 +39,7 @@
     "@types/react": "~19.2.2",
     "@typescript-eslint/eslint-plugin": "^8.66.0",
     "@typescript-eslint/parser": "^8.66.0",
+    "eslint": "9.39.5",
     "eslint-config-expo": "^57.0.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
