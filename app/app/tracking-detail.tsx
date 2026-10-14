@@ -26,12 +26,14 @@ const STATUS_LABELS: Record<RequestStatus, string> = {
   in_review: "In review",
   assigned: "Assigned",
   resolved: "Resolved",
+  rejected: "Rejected",
 };
 const STATUS_STEPS: RequestStatus[] = [
   "pending",
   "in_review",
   "assigned",
   "resolved",
+  "rejected",
 ];
 
 export default function TrackingDetailScreen() {

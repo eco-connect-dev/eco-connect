@@ -1,32 +1,52 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { StatusDropdown } from "@/components/council/StatusDropdown";
 import { ItemStatus, StatusBadge } from "@/components/council/StatusBadge";
 import { Colors } from "@/constants/Colors";
+import { getCouncilRequest, TrackedRequest, updateCouncilRequestStatus } from "@/lib/tracking";
 
 const HEADER_EXTRA_PADDING = 8;
-
-// TODO: replace with data fetched via the item id (route param) from Supabase
-const REQUEST = {
-    title: "Bulk Waste Pickup: Old Sofa & Dining Set",
-    category: "Bulk Waste (Household)",
-    submittedDate: "Aug 12, 2026, 09:34 AM",
-    requestedDate: "Aug 15, 2026 (Anytime)",
-    location: "42 Maple St, Ward Place",
-    mapLabel: "Colombo Ward Place Map",
-    description:
-        "Three-seater fabric sofa and a wooden dining table left neatly at the curb. Not blocking the sidewalk. Items are dry and prepared for municipal crew loader.",
-    submittedByName: "Kasun Gamlath",
-    submittedByContact: "kasungamlath20@email.com • +94 77 1132 678",
-};
 
 export default function ItemDetailPickupScreen() {
     const insets = useSafeAreaInsets();
     const [status, setStatus] = useState<ItemStatus>("pending");
+    const [request, setRequest] = useState<TrackedRequest | null>(null);
+    const [error, setError] = useState("");
+    const [saving, setSaving] = useState(false);
+    const { id } = useLocalSearchParams<{ id: string }>();
+
+    useEffect(() => {
+        if (!id) return;
+        let active = true;
+        void getCouncilRequest("pickup_requests", id)
+            .then((item) => {
+                if (!active) return;
+                setRequest(item);
+                setStatus(item.status === "in_review" ? "under_review" : item.status === "resolved" ? "completed" : item.status);
+            })
+            .catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : "Couldn't load this pickup request."));
+        return () => { active = false; };
+    }, [id]);
+
+    const saveStatus = async (nextStatus: ItemStatus, returnToDashboard = false) => {
+        if (!id || saving) return;
+        setSaving(true);
+        setError("");
+        try {
+            const updated = await updateCouncilRequestStatus("pickup_requests", id, nextStatus);
+            setRequest(updated);
+            setStatus(nextStatus);
+            if (returnToDashboard) router.replace("/(tabs)/council-dashboard");
+        } catch (saveError) {
+            setError(saveError instanceof Error ? saveError.message : "Couldn't update the request status.");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     return (
         <View style={styles.screen}>
@@ -43,7 +63,7 @@ export default function ItemDetailPickupScreen() {
                 {/* Hero badge + title */}
                 <View style={styles.heroSection}>
                     <StatusBadge status={status} />
-                    <Text style={styles.title}>{REQUEST.title}</Text>
+                    <Text style={styles.title}>{request ? `${request.category} pickup` : "Pickup Request"}</Text>
                 </View>
 
                 <View style={styles.divider} />
@@ -52,22 +72,22 @@ export default function ItemDetailPickupScreen() {
                 <View style={styles.rowsSection}>
                     <View style={styles.row}>
                         <Text style={styles.rowLabel}>Category</Text>
-                        <Text style={styles.rowValueBold}>{REQUEST.category}</Text>
+                        <Text style={styles.rowValueBold}>{request?.category ?? "Loading…"}</Text>
                     </View>
 
                     <View style={styles.row}>
                         <Text style={styles.rowLabel}>Current Status</Text>
-                        <StatusDropdown status={status} onChange={setStatus} />
+                        <StatusDropdown status={status} onChange={saveStatus} />
                     </View>
 
                     <View style={styles.row}>
                         <Text style={styles.rowLabel}>Submitted Date</Text>
-                        <Text style={styles.rowValue}>{REQUEST.submittedDate}</Text>
+                        <Text style={styles.rowValue}>{request ? new Date(request.submitted_at).toLocaleString() : "Loading…"}</Text>
                     </View>
 
                     <View style={styles.row}>
                         <Text style={styles.rowLabel}>Requested Date</Text>
-                        <Text style={styles.rowValueBold}>{REQUEST.requestedDate}</Text>
+                        <Text style={styles.rowValueBold}>Pickup requested</Text>
                     </View>
                 </View>
 
@@ -76,11 +96,11 @@ export default function ItemDetailPickupScreen() {
                 {/* Location */}
                 <View style={styles.locationSection}>
                     <Text style={styles.sectionLabel}>Pickup Location</Text>
-                    <Text style={styles.locationAddress}>{REQUEST.location}</Text>
+                    <Text style={styles.locationAddress}>{request?.location ?? "Loading location…"}</Text>
                     <View style={styles.mapPlaceholder}>
                         <View style={styles.mapLabelPill}>
                             <Ionicons name="location" size={14} color={Colors.councilTextPrimary} />
-                            <Text style={styles.mapLabelText}>{REQUEST.mapLabel}</Text>
+                            <Text style={styles.mapLabelText}>{request?.location ?? "Pickup location"}</Text>
                         </View>
                     </View>
                 </View>
@@ -88,22 +108,17 @@ export default function ItemDetailPickupScreen() {
                 {/* Description */}
                 <View style={styles.descriptionSection}>
                     <Text style={styles.sectionLabel}>Item Description</Text>
-                    <Text style={styles.descriptionText}>{REQUEST.description}</Text>
+                    <Text style={styles.descriptionText}>{request?.notes || "No additional notes provided."}</Text>
                 </View>
 
-                {/* Submitted by */}
-                <View style={styles.submitterCard}>
-                    <Text style={styles.submitterLabel}>SUBMITTED BY</Text>
-                    <Text style={styles.submitterName}>{REQUEST.submittedByName}</Text>
-                    <Text style={styles.submitterContact}>{REQUEST.submittedByContact}</Text>
-                </View>
+                {error ? <Text style={styles.submitterContact}>{error}</Text> : null}
 
                 {/* Actions */}
                 <View style={styles.actions}>
-                    <Pressable style={styles.primaryButton} onPress={() => setStatus("assigned")}>
-                        <Text style={styles.primaryButtonText}>Assign to Municipal Crew</Text>
+                    <Pressable style={styles.primaryButton} disabled={saving} onPress={() => void saveStatus("assigned", true)}>
+                        <Text style={styles.primaryButtonText}>{saving ? "Saving…" : "Assign to Municipal Crew"}</Text>
                     </Pressable>
-                    <Pressable style={styles.secondaryButton} onPress={() => setStatus("rejected")}>
+                    <Pressable style={styles.secondaryButton} disabled={saving} onPress={() => void saveStatus("rejected", true)}>
                         <Text style={styles.secondaryButtonText}>Reject / Close</Text>
                     </Pressable>
                 </View>

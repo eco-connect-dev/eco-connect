@@ -1,7 +1,8 @@
 import { supabase } from "@/lib/supabase";
+import { ItemStatus } from "@/components/council/StatusBadge";
 
 export type TrackingSource = "dumping_reports" | "pickup_requests";
-export type RequestStatus = "pending" | "in_review" | "assigned" | "resolved";
+export type RequestStatus = "pending" | "in_review" | "assigned" | "resolved" | "rejected";
 
 export type TrackedRequest = {
   id: string;
@@ -89,6 +90,57 @@ export async function listCouncilRequests(): Promise<TrackedRequest[]> {
   return [...dumping, ...pickups].sort(
     (a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime(),
   );
+}
+
+export async function getCouncilRequest(
+  source: TrackingSource,
+  id: string,
+): Promise<TrackedRequest> {
+  const isPickup = source === "pickup_requests";
+  const { data, error } = await supabase
+    .from(source)
+    .select(
+      isPickup
+        ? "id, resident_id, category, status, submitted_at, location, notes"
+        : "id, reporter_id, category, status, submitted_at, location, notes",
+    )
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+  const row = data as RawRequest;
+  return {
+    ...row,
+    source,
+    reporter_id: isPickup ? (row.resident_id ?? "") : (row.reporter_id ?? ""),
+  };
+}
+
+export async function updateCouncilRequestStatus(
+  source: TrackingSource,
+  id: string,
+  status: ItemStatus,
+): Promise<TrackedRequest> {
+  const databaseStatus: RequestStatus =
+    status === "under_review" ? "in_review" : status === "completed" ? "resolved" : status as RequestStatus;
+  const { data, error } = await supabase
+    .from(source)
+    .update({ status: databaseStatus })
+    .eq("id", id)
+    .select(
+      source === "pickup_requests"
+        ? "id, resident_id, category, status, submitted_at, location, notes"
+        : "id, reporter_id, category, status, submitted_at, location, notes",
+    )
+    .single();
+
+  if (error) throw error;
+  const row = data as RawRequest;
+  return {
+    ...row,
+    source,
+    reporter_id: source === "pickup_requests" ? (row.resident_id ?? "") : (row.reporter_id ?? ""),
+  };
 }
 
 export async function listMyRequests(): Promise<TrackedRequest[]> {

@@ -29,7 +29,7 @@ const STATUS_CONFIG: Record<ItemStatus, { label: string; bg: string; border: str
     text: Colors.statusRejectedText,
   },
   completed: {
-    label: "Completed",
+    label: "Resolved",
     bg: Colors.statusCompletedBg,
     border: Colors.statusCompletedBorder,
     text: Colors.statusCompletedText,
