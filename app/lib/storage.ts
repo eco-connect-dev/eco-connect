@@ -2,7 +2,10 @@ import type { ImagePickerAsset } from "expo-image-picker";
 
 import { supabase } from "@/lib/supabase";
 
-export type ImageBucket = "community_posts" | "dump-report-images";
+export type ImageBucket =
+  | "community_posts"
+  | "dump-report-images"
+  | "pickup_requests";
 
 function decodeBase64(value: string): ArrayBuffer {
   const binary = atob(value);

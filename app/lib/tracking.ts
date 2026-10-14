@@ -71,7 +71,7 @@ export async function listCouncilRequests(): Promise<TrackedRequest[]> {
       .order("submitted_at", { ascending: false }),
     supabase
       .from("pickup_requests")
-      .select("id, resident_id, category, status, submitted_at, location, notes")
+      .select("id, resident_id, category, status, submitted_at, location, notes, image_url")
       .order("submitted_at", { ascending: false }),
   ]);
 
@@ -103,7 +103,7 @@ export async function getCouncilRequest(
     .from(source)
     .select(
       isPickup
-        ? "id, resident_id, category, status, submitted_at, location, notes"
+        ? "id, resident_id, category, status, submitted_at, location, notes, image_url"
         : "id, reporter_id, category, status, submitted_at, location, notes, image_url",
     )
     .eq("id", id)
@@ -131,7 +131,7 @@ export async function updateCouncilRequestStatus(
     .eq("id", id)
     .select(
       source === "pickup_requests"
-        ? "id, resident_id, category, status, submitted_at, location, notes"
+        ? "id, resident_id, category, status, submitted_at, location, notes, image_url"
         : "id, reporter_id, category, status, submitted_at, location, notes, image_url",
     )
     .single();
@@ -161,7 +161,7 @@ export async function listMyRequests(): Promise<TrackedRequest[]> {
     supabase
       .from("pickup_requests")
       .select(
-        "id, resident_id, category, status, submitted_at, location, notes",
+        "id, resident_id, category, status, submitted_at, location, notes, image_url",
       )
       .eq("resident_id", auth.user.id)
       .order("submitted_at", { ascending: false }),
@@ -232,7 +232,7 @@ export async function getMyTrackedRequest(
     .from(source)
     .select(
       isPickup
-        ? "id, resident_id, category, status, submitted_at, location, notes"
+        ? "id, resident_id, category, status, submitted_at, location, notes, image_url"
         : "id, reporter_id, category, status, submitted_at, location, notes, image_url",
     )
     .eq("id", id)
