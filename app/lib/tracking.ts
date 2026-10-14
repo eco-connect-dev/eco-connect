@@ -59,6 +59,38 @@ type RawRequest = Omit<TrackedRequest, "source" | "reporter_id"> & {
   resident_id?: string;
 };
 
+/** Council view of all pickup requests and dumping reports allowed by RLS. */
+export async function listCouncilRequests(): Promise<TrackedRequest[]> {
+  const [dumpingResult, pickupResult] = await Promise.all([
+    supabase
+      .from("dumping_reports")
+      .select("id, reporter_id, category, status, submitted_at, location, notes")
+      .order("submitted_at", { ascending: false }),
+    supabase
+      .from("pickup_requests")
+      .select("id, resident_id, category, status, submitted_at, location, notes")
+      .order("submitted_at", { ascending: false }),
+  ]);
+
+  if (dumpingResult.error) throw dumpingResult.error;
+  if (pickupResult.error) throw pickupResult.error;
+
+  const dumping = ((dumpingResult.data ?? []) as RawRequest[]).map((row) => ({
+    ...row,
+    source: "dumping_reports" as const,
+    reporter_id: row.reporter_id ?? "",
+  }));
+  const pickups = ((pickupResult.data ?? []) as RawRequest[]).map((row) => ({
+    ...row,
+    source: "pickup_requests" as const,
+    reporter_id: row.resident_id ?? "",
+  }));
+
+  return [...dumping, ...pickups].sort(
+    (a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime(),
+  );
+}
+
 export async function listMyRequests(): Promise<TrackedRequest[]> {
   const { data: auth, error: authError } = await supabase.auth.getUser();
   if (authError) throw authError;

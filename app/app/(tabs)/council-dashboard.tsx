@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -13,29 +13,45 @@ import { TabSwitcher } from "@/components/council/TabSwitcher";
 import { EMPTY_FILTERS, FilterModal, FilterState } from "@/components/council/FilterModal";
 import { Colors } from "@/constants/Colors";
 import { isWithinDateRange } from "@/lib/itemFilters";
-import { listCouncilReports, Report } from "@/lib/reports";
+import { CommunityPost, getCommunityPosts, getPostTimeLabel } from "@/lib/community";
+import { listCouncilRequests, TrackedRequest } from "@/lib/tracking";
 
 const HEADER_EXTRA_PADDING = 8;
 const TABS = ["All", "Pickups", "Dumping"] as const;
 
-// TODO: replace with data from Supabase
-const MOCK_ITEMS: PendingItem[] = [
-  { id: "1", title: "Bulk Waste: Old Sofa", category: "pickup", wasteCategory: "bulk", location: "1042 Maple St", area: "Maple Street", date: "Aug 12", dateISO: "2026-08-12", status: "pending" },
-  { id: "2", title: "Illegal Dumping", category: "dumping", wasteCategory: "illegal_dumping", location: "450 Industrial Rd", area: "Industrial Zone", date: "Aug 11", dateISO: "2026-08-11", status: "under_review" },
-  { id: "3", title: "E-Waste Disposal", category: "pickup", wasteCategory: "hazardous", location: "789 Pine Ave", area: "Pine Avenue", date: "Aug 10", dateISO: "2026-08-10", status: "assigned" },
-  { id: "4", title: "Tires Abandoned in Alley", category: "dumping", wasteCategory: "illegal_dumping", location: "Intersection 5th & Oak", area: "5th & Oak", date: "Aug 10", dateISO: "2026-08-10", status: "pending" },
-  { id: "5", title: "Yard Waste Overload", category: "pickup", wasteCategory: "general", location: "211 Elm Blvd", area: "Elm Boulevard", date: "Aug 09", dateISO: "2026-08-09", status: "pending" },
-  { id: "6", title: "Construction Debris", category: "dumping", wasteCategory: "illegal_dumping", location: "882 River Rd", area: "River Road", date: "Aug 08", dateISO: "2026-08-08", status: "under_review" },
-];
+function toPendingItem(request: TrackedRequest): PendingItem {
+  const submittedAt = new Date(request.submitted_at);
+  const rawStatus = request.status;
+  const status: PendingItem["status"] = rawStatus === "in_review" ? "under_review" : rawStatus === "resolved" ? "completed" : rawStatus;
+  const category = request.source === "pickup_requests" ? "pickup" : "dumping";
+  const normalizedCategory = request.category.toLowerCase();
+  const wasteCategory: PendingItem["wasteCategory"] = category === "dumping"
+    ? "illegal_dumping"
+    : normalizedCategory.includes("recycl") ? "recyclable"
+      : normalizedCategory.includes("hazard") || normalizedCategory.includes("e-waste") ? "hazardous"
+        : normalizedCategory.includes("bulk") ? "bulk" : "general";
 
-const TOTAL_ITEMS = 24;
-const TOTAL_PAGES = 4;
+  return {
+    id: request.id,
+    title: category === "pickup" ? `${request.category} pickup` : request.category,
+    category,
+    wasteCategory,
+    location: request.location,
+    area: request.location,
+    date: Number.isNaN(submittedAt.getTime()) ? "" : submittedAt.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    dateISO: Number.isNaN(submittedAt.getTime()) ? "" : submittedAt.toISOString().slice(0, 10),
+    status,
+  };
+}
 
 export default function CouncilDashboardScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("All");
-  const [reports, setReports] = useState<Report[]>([]);
-  const [reportError, setReportError] = useState("");
+  const [requests, setRequests] = useState<TrackedRequest[]>([]);
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [requestError, setRequestError] = useState("");
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [postError, setPostError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -43,17 +59,13 @@ export default function CouncilDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      void listCouncilReports()
-        .then((items) => {
-          if (active) setReports(items);
-        })
-        .catch((error: unknown) => {
-          if (active) {
-            setReportError(
-              error instanceof Error ? error.message : "Couldn't load reports.",
-            );
-          }
-        });
+      void listCouncilRequests()
+        .then((items) => { if (active) { setRequests(items); setRequestError(""); } })
+        .catch((error: unknown) => { if (active) setRequestError(error instanceof Error ? error.message : "Couldn't load pickup and dumping requests."); })
+        .finally(() => { if (active) setRequestsLoading(false); });
+      void getCommunityPosts()
+        .then((items) => { if (active) setPosts(items); })
+        .catch((error: unknown) => { if (active) setPostError(error instanceof Error ? error.message : "Couldn't load community posts."); });
       return () => {
         active = false;
       };
@@ -66,8 +78,9 @@ export default function CouncilDashboardScreen() {
     (filters.area.trim() ? 1 : 0) +
     (filters.dateRange !== "all" ? 1 : 0);
 
+  const allItems = useMemo(() => requests.map(toPendingItem), [requests]);
   const filteredItems = useMemo(() => {
-    return MOCK_ITEMS.filter((item) => {
+    return allItems.filter((item) => {
       if (activeTab === "Pickups" && item.category !== "pickup") return false;
       if (activeTab === "Dumping" && item.category !== "dumping") return false;
 
@@ -105,10 +118,11 @@ export default function CouncilDashboardScreen() {
 
       return true;
     });
-  }, [activeTab, searchQuery, filters]);
+  }, [allItems, activeTab, searchQuery, filters]);
 
-  const pickupCount = MOCK_ITEMS.filter((i) => i.category === "pickup").length;
-  const dumpingCount = MOCK_ITEMS.filter((i) => i.category === "dumping").length;
+  const pickupCount = allItems.filter((i) => i.category === "pickup").length;
+  const dumpingCount = allItems.filter((i) => i.category === "dumping").length;
+  const pendingCount = allItems.filter((item) => item.status === "pending" || item.status === "under_review").length;
 
   return (
     <View style={styles.screen}>
@@ -128,46 +142,9 @@ export default function CouncilDashboardScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Resident reports */}
-        <View style={styles.residentReports}>
-          <Text style={styles.residentReportsTitle}>Resident Reports</Text>
-          {reportError ? (
-            <Text style={styles.reportError}>{reportError}</Text>
-          ) : reports.length ? (
-            reports.map((report) => (
-              <Pressable
-                key={report.id}
-                onPress={() =>
-                  router.push({
-                    pathname: "/council-report-detail",
-                    params: { id: report.id },
-                  })
-                }
-                style={styles.residentReportCard}
-              >
-                <View style={styles.residentReportCopy}>
-                  <Text style={styles.residentReportName} numberOfLines={1}>
-                    {report.title}
-                  </Text>
-                  <Text style={styles.residentReportArea} numberOfLines={1}>
-                    {report.neighborhood} · {report.status.replace("_", " ")}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={Colors.councilTextSecondary}
-                />
-              </Pressable>
-            ))
-          ) : (
-            <Text style={styles.reportEmpty}>No resident reports to review.</Text>
-          )}
-        </View>
-
         {/* Stats */}
         <View style={styles.statsRow}>
-          <StatCard value={TOTAL_ITEMS} label="Total Pending" />
+          <StatCard value={pendingCount} label="Total Pending" />
           <StatCard value={pickupCount} label="Pickups" />
           <StatCard value={dumpingCount} label="Dumping" />
         </View>
@@ -193,9 +170,7 @@ export default function CouncilDashboardScreen() {
           </View>
 
           <View style={styles.listMetaRow}>
-            <Text style={styles.listMetaText}>
-              Showing {filteredItems.length} of {TOTAL_ITEMS} items
-            </Text>
+            <Text style={styles.listMetaText}>Showing {filteredItems.length} of {allItems.length} items</Text>
             <Pressable style={styles.filterButton} onPress={() => setFilterModalVisible(true)}>
               <Ionicons name="options-outline" size={14} color={Colors.councilTextSecondary} />
               <Text style={styles.filterButtonText}>Filters</Text>
@@ -210,7 +185,10 @@ export default function CouncilDashboardScreen() {
 
         {/* List */}
         <View style={styles.list}>
-          {filteredItems.length === 0 ? (
+          <Text style={styles.residentReportsTitle}>Pickup Requests and Dumping Reports</Text>
+          {requestError ? <Text style={styles.reportError}>{requestError}</Text> : requestsLoading ? (
+            <Text style={styles.reportEmpty}>Loading pickup requests and dumping reports…</Text>
+          ) : filteredItems.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="file-tray-outline" size={28} color={Colors.councilTextMuted} />
               <Text style={styles.emptyStateText}>No requests match your filters</Text>
@@ -238,10 +216,24 @@ export default function CouncilDashboardScreen() {
           )}
         </View>
 
+        <View style={styles.residentReports}>
+          <Text style={styles.residentReportsTitle}>Community Posts</Text>
+          {postError ? <Text style={styles.reportError}>{postError}</Text> : posts.length ? posts.slice(0, 5).map((post) => (
+            <View key={post.id} style={styles.residentReportCard}>
+              {post.image_url ? <Image source={{ uri: post.image_url }} style={styles.communityPostImage} /> : null}
+              <View style={styles.residentReportCopy}>
+                <Text style={styles.residentReportName} numberOfLines={1}>{post.author_name} · {post.location}</Text>
+                {!!post.description && <Text style={styles.residentReportArea} numberOfLines={2}>{post.description}</Text>}
+                <Text style={styles.residentReportArea}>{getPostTimeLabel(post.created_at)}</Text>
+              </View>
+            </View>
+          )) : <Text style={styles.reportEmpty}>No community posts yet.</Text>}
+        </View>
+
         {/* Load more */}
         <View style={styles.loadMoreWrap}>
           <Pressable style={styles.loadMoreButton}>
-            <Text style={styles.loadMoreText}>Load More Items (1 of {TOTAL_PAGES} pages)</Text>
+            <Text style={styles.loadMoreText}>{allItems.length} requests loaded</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -321,6 +313,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   residentReportArea: { color: Colors.councilTextSecondary, fontSize: 11 },
+  communityPostImage: { width: 52, height: 52, borderRadius: 6, backgroundColor: Colors.councilIconCircleBg },
   reportError: { color: Colors.error, fontSize: 12 },
   reportEmpty: { color: Colors.councilTextSecondary, fontSize: 12 },
   statsRow: {
