@@ -5,15 +5,24 @@ export type MapCoordinate = {
   longitude: number;
 };
 
+export type MapPin = MapCoordinate & {
+  id: string;
+  title: string;
+  kind: "dump" | "pickup";
+};
+
 type MapSelectorProps = {
-  selectedPoint: MapCoordinate;
-  onSelectPoint: (point: MapCoordinate) => void;
+  selectedPoint?: MapCoordinate;
+  markers?: MapPin[];
+  onSelectPoint?: (point: MapCoordinate) => void;
   onMapLoadError?: (message: string) => void;
 };
 
 export default function MapSelector({
   selectedPoint: _selectedPoint,
+  markers: _markers,
   onSelectPoint: _onSelectPoint,
+  onMapLoadError: _onMapLoadError,
 }: MapSelectorProps) {
   return (
     <View style={styles.container}>

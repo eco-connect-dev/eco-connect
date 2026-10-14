@@ -29,7 +29,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow Eco-Connect to look up an address for a point you select on the map."
+          "locationWhenInUsePermission": "Allow Eco-Connect to look up addresses for locations you select or track on the map."
         }
       ],
       [

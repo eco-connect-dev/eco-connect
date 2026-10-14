@@ -1,14 +1,20 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import type { MapCoordinate } from "./MapSelector.native";
+import type { MapCoordinate, MapPin } from "./MapSelector.native";
 
 type MapSelectorProps = {
-  selectedPoint: MapCoordinate;
-  onSelectPoint: (point: MapCoordinate) => void;
+  selectedPoint?: MapCoordinate;
+  markers?: MapPin[];
+  onSelectPoint?: (point: MapCoordinate) => void;
   onMapLoadError?: (message: string) => void;
 };
 
-export default function MapSelector({ selectedPoint: _selectedPoint, onSelectPoint: _onSelectPoint }: MapSelectorProps) {
+export default function MapSelector({
+  selectedPoint: _selectedPoint,
+  markers: _markers,
+  onSelectPoint: _onSelectPoint,
+  onMapLoadError: _onMapLoadError,
+}: MapSelectorProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Map selection is available in the mobile app</Text>

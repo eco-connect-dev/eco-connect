@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import * as Location from "expo-location";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
+import MapSelector, { type MapCoordinate, type MapPin } from "@/components/MapSelector";
 import {
   getRequestTitle,
   listMyRequests,
@@ -24,6 +27,10 @@ import {
   subscribeToMyRequests,
   TrackedRequest,
 } from "@/lib/tracking";
+
+type SubmissionFilter = "all" | "dump" | "pickup";
+
+const geocodeCache = new Map<string, MapCoordinate | null>();
 
 const STATUS_LABELS: Record<RequestStatus, string> = {
   pending: "Request received",
@@ -45,6 +52,10 @@ export default function TrackScreen() {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const [requests, setRequests] = useState<TrackedRequest[]>([]);
+  const [mapMarkers, setMapMarkers] = useState<MapPin[]>([]);
+  const [mappingSubmissions, setMappingSubmissions] = useState(false);
+  const [mapMessage, setMapMessage] = useState("");
+  const [filter, setFilter] = useState<SubmissionFilter>("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -56,6 +67,17 @@ export default function TrackScreen() {
     try {
       const response = await listMyRequests();
       setRequests(response);
+      const activeIds = new Set(
+        response
+          .filter((item) => item.status !== "resolved")
+          .map((item) => `${item.source}:${item.id}`),
+      );
+      setMapMarkers((current) => current.filter((marker) => activeIds.has(marker.id)));
+      setMapMessage(
+        response.length > 0 && activeIds.size === 0
+          ? "Resolved submissions are hidden from Track."
+          : "",
+      );
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Couldn't load requests.",
@@ -65,6 +87,11 @@ export default function TrackScreen() {
       setRefreshing(false);
     }
   }, []);
+
+  const activeRequests = useMemo(
+    () => requests.filter((item) => item.status !== "resolved"),
+    [requests],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -92,8 +119,97 @@ export default function TrackScreen() {
     }, [loadRequests]),
   );
 
+  useEffect(() => {
+    if (!activeRequests.length) return;
+
+    let active = true;
+
+    async function locateSubmissions() {
+      const pins: MapPin[] = [];
+      try {
+        if (Platform.OS === "android") {
+          const currentPermission = await Location.getForegroundPermissionsAsync();
+          const permission = currentPermission.granted
+            ? currentPermission
+            : await Location.requestForegroundPermissionsAsync();
+          if (!permission.granted) {
+            if (active) {
+              setMapMessage("Allow location access to place your submissions on the map.");
+            }
+            return;
+          }
+        }
+        if (!active) return;
+        setMappingSubmissions(true);
+        setMapMessage("");
+        setMapMarkers([]);
+
+        for (let start = 0; start < activeRequests.length; start += 4) {
+          if (!active) return;
+          const batch = activeRequests.slice(start, start + 4);
+          const batchPins = await Promise.all(
+            batch.map(async (request) => {
+              const address = /sri lanka/i.test(request.location)
+                ? request.location
+                : `${request.location}, Sri Lanka`;
+              const cacheKey = address.trim().toLowerCase();
+              let coordinate = geocodeCache.get(cacheKey);
+              if (coordinate === undefined) {
+                try {
+                  const [result] = await Location.geocodeAsync(address);
+                  coordinate = result
+                    ? { latitude: result.latitude, longitude: result.longitude }
+                    : null;
+                } catch {
+                  coordinate = null;
+                }
+                geocodeCache.set(cacheKey, coordinate);
+              }
+              if (!coordinate) return null;
+              return {
+                id: `${request.source}:${request.id}`,
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                title: `${request.source === "pickup_requests" ? "Pickup" : "Dump report"}: ${request.location}`,
+                kind: request.source === "pickup_requests" ? "pickup" as const : "dump" as const,
+              };
+            }),
+          );
+          pins.push(...batchPins.filter((pin): pin is MapPin => pin !== null));
+        }
+        if (active) {
+          setMapMarkers(pins);
+          if (!pins.length) {
+            setMapMessage("No submission locations could be found for the map.");
+          }
+        }
+      } catch {
+        if (active) {
+          setMapMessage("Submission locations could not be loaded for the map.");
+        }
+      } finally {
+        if (active) setMappingSubmissions(false);
+      }
+    }
+
+    void locateSubmissions();
+    return () => {
+      active = false;
+    };
+  }, [activeRequests]);
+
+  const filteredRequests = activeRequests.filter((item) => {
+    if (filter === "dump") return item.source === "dumping_reports";
+    if (filter === "pickup") return item.source === "pickup_requests";
+    return true;
+  });
+  const filteredMapMarkers = mapMarkers.filter((marker) => {
+    if (filter === "dump") return marker.kind === "dump";
+    if (filter === "pickup") return marker.kind === "pickup";
+    return true;
+  });
   const request =
-    requests.find((item) => item.status !== "resolved") ?? requests[0];
+    filteredRequests.find((item) => item.status !== "resolved") ?? filteredRequests[0];
   const mapHeight = Math.min(420, Math.max(280, height * 0.42));
 
   return (
@@ -110,7 +226,12 @@ export default function TrackScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.mapSection, { height: mapHeight }]}>
-          <MapPreview />
+          <View style={styles.mapCanvas}>
+            <MapSelector
+              markers={filteredMapMarkers}
+              onMapLoadError={setMapMessage}
+            />
+          </View>
           <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
             <View style={styles.brand}>
               <Image
@@ -133,17 +254,28 @@ export default function TrackScreen() {
           <View style={styles.crewPill}>
             <Ionicons name="bus" size={18} color="#FFFFFF" />
             <Text style={styles.crewPillText}>
-              {request?.status === "assigned"
+              {mappingSubmissions
+                ? "Locating submissions"
+                : request?.status === "assigned"
                 ? "Crew is on the way"
                 : request
-                  ? "Tracking your submission"
+                  ? "Tracking your submissions"
                   : "Your submissions map"}
             </Text>
           </View>
-          <View style={styles.locationMarker}>
-            <View style={styles.markerPulse} />
-            <View style={styles.markerDot}>
-              <Ionicons name="location" size={16} color={Colors.forestGreen} />
+          {mapMessage ? (
+            <View style={styles.mapNotice}>
+              <Text style={styles.mapNoticeText}>{mapMessage}</Text>
+            </View>
+          ) : null}
+          <View style={styles.mapLegend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, styles.dumpDot]} />
+              <Text style={styles.legendText}>Dump report</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, styles.pickupDot]} />
+              <Text style={styles.legendText}>Pickup</Text>
             </View>
           </View>
         </View>
@@ -159,16 +291,59 @@ export default function TrackScreen() {
               <Text style={styles.retryText}>Try again</Text>
             </Pressable>
           </View>
-        ) : requests.length ? (
+        ) : activeRequests.length ? (
           <View style={styles.submissions}>
             <View style={styles.submissionsHeader}>
               <Text style={styles.submissionsTitle}>My submissions</Text>
-              <Text style={styles.submissionsCount}>{requests.length}</Text>
+              <Text style={styles.submissionsCount}>{filteredRequests.length}</Text>
             </View>
             {error ? <Text style={styles.refreshError}>{error}</Text> : null}
-            {requests.map((item) => (
-              <TrackingSheet key={`${item.source}:${item.id}`} request={item} />
-            ))}
+            <View style={styles.filters}>
+              {([
+                { key: "all", label: `All (${activeRequests.length})` },
+                {
+                  key: "dump",
+                  label: `Dump reports (${activeRequests.filter((item) => item.source === "dumping_reports").length})`,
+                },
+                {
+                  key: "pickup",
+                  label: `Pickup (${activeRequests.filter((item) => item.source === "pickup_requests").length})`,
+                },
+              ] as const).map((option) => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: filter === option.key }}
+                  key={option.key}
+                  onPress={() => setFilter(option.key)}
+                  style={[
+                    styles.filterButton,
+                    filter === option.key && styles.filterButtonSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterText,
+                      filter === option.key && styles.filterTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {filteredRequests.length ? (
+              filteredRequests.map((item) => (
+                <TrackingSheet key={`${item.source}:${item.id}`} request={item} />
+              ))
+            ) : (
+              <View style={styles.filteredEmpty}>
+                <Text style={styles.emptyText}>
+                  {filter === "dump"
+                    ? "You haven’t submitted any dumping reports yet."
+                    : "You haven’t submitted any pickup requests yet."}
+                </Text>
+              </View>
+            )}
           </View>
         ) : (
           <View style={styles.stateCard}>
@@ -179,10 +354,13 @@ export default function TrackScreen() {
                 color={Colors.forestGreen}
               />
             </View>
-            <Text style={styles.emptyTitle}>Nothing to track yet</Text>
+            <Text style={styles.emptyTitle}>
+              {requests.length ? "No active submissions" : "Nothing to track yet"}
+            </Text>
             <Text style={styles.emptyText}>
-              Your pickup requests and reports will appear here with live
-              updates from your local council.
+              {requests.length
+                ? "Completed requests and reports are hidden from Track."
+                : "Your pickup requests and reports will appear here with live updates from your local council."}
             </Text>
           </View>
         )}
@@ -281,26 +459,6 @@ function TrackingSheet({ request }: { request: TrackedRequest }) {
   );
 }
 
-function MapPreview() {
-  return (
-    <View style={styles.mapPreview}>
-      <View style={[styles.mapRoad, styles.mapRoadOne]} />
-      <View style={[styles.mapRoad, styles.mapRoadTwo]} />
-      <View style={[styles.mapRoad, styles.mapRoadThree]} />
-      <View style={[styles.mapRoad, styles.mapRoadFour]} />
-      <View style={[styles.mapBlock, styles.mapBlockOne]} />
-      <View style={[styles.mapBlock, styles.mapBlockTwo]} />
-      <View style={[styles.mapBlock, styles.mapBlockThree]} />
-      <View style={[styles.mapBlock, styles.mapBlockFour]} />
-      <View style={styles.mapWater} />
-      <View style={styles.mapScale}>
-        <View style={styles.mapScaleLine} />
-        <Text style={styles.mapScaleLabel}>Colombo, Sri Lanka</Text>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.homeBackground },
   scrollContent: { paddingBottom: 26 },
@@ -321,69 +479,15 @@ const styles = StyleSheet.create({
   mapSection: {
     position: "relative",
     overflow: "hidden",
-    backgroundColor: "#D5E6D5",
+    backgroundColor: "#E7ECE7",
   },
-  mapPreview: {
+  mapCanvas: {
     position: "absolute",
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: "#D8E9D7",
     overflow: "hidden",
-  },
-  mapRoad: {
-    position: "absolute",
-    backgroundColor: "#F8F4E8",
-    borderColor: "#CADCC6",
-    borderWidth: 1,
-  },
-  mapRoadOne: {
-    width: "130%",
-    height: 44,
-    top: 138,
-    left: -50,
-    transform: [{ rotate: "-25deg" }],
-  },
-  mapRoadTwo: {
-    width: "140%",
-    height: 28,
-    top: 330,
-    left: -40,
-    transform: [{ rotate: "20deg" }],
-  },
-  mapRoadThree: {
-    width: 26,
-    height: "130%",
-    top: -80,
-    left: "48%",
-    transform: [{ rotate: "27deg" }],
-  },
-  mapRoadFour: {
-    width: "100%",
-    height: 20,
-    top: 470,
-    left: 10,
-    transform: [{ rotate: "-11deg" }],
-  },
-  mapBlock: {
-    position: "absolute",
-    backgroundColor: "rgba(105, 161, 103, 0.3)",
-    borderRadius: 12,
-  },
-  mapBlockOne: { width: 100, height: 78, top: 75, left: 18 },
-  mapBlockTwo: { width: 128, height: 86, top: 105, right: -12 },
-  mapBlockThree: { width: 105, height: 130, top: 290, left: -18 },
-  mapBlockFour: { width: 135, height: 88, top: 405, right: 14 },
-  mapWater: {
-    position: "absolute",
-    width: 160,
-    height: 260,
-    right: -45,
-    bottom: -80,
-    borderRadius: 100,
-    backgroundColor: "rgba(151, 199, 213, 0.35)",
-    transform: [{ rotate: "22deg" }],
   },
   mapTopFade: {
     position: "absolute",
@@ -440,47 +544,59 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   crewPillText: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
-  locationMarker: {
+  mapNotice: {
     position: "absolute",
-    top: "59%",
+    bottom: 55,
     alignSelf: "center",
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "rgba(0,69,13,0.22)",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 12,
+    maxWidth: "90%",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    zIndex: 3,
   },
-  markerPulse: {
-    position: "absolute",
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: Colors.homeBackground,
-  },
-  markerDot: {
-    width: 17,
-    height: 17,
-    borderRadius: 9,
-    backgroundColor: Colors.forestGreen,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  mapScale: {
-    position: "absolute",
-    left: 16,
-    bottom: 18,
-    gap: 3,
-  },
-  mapScaleLine: {
-    width: 38,
-    height: 3,
-    backgroundColor: Colors.cardTextSecondary,
-  },
-  mapScaleLabel: {
+  mapNoticeText: {
     color: Colors.cardTextSecondary,
-    fontSize: 9,
-    fontWeight: "600",
+    fontSize: 11,
+    textAlign: "center",
+  },
+  mapLegend: {
+    position: "absolute",
+    bottom: 14,
+    left: 14,
+    flexDirection: "row",
+    gap: 10,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    zIndex: 2,
+  },
+  legendItem: { alignItems: "center", flexDirection: "row", gap: 5 },
+  legendDot: { width: 9, height: 9, borderRadius: 5 },
+  dumpDot: { backgroundColor: "#E86B45" },
+  pickupDot: { backgroundColor: "#08752B" },
+  legendText: { color: Colors.cardTextSecondary, fontSize: 9, fontWeight: "600" },
+  filters: { flexDirection: "row", gap: 8 },
+  filterButton: {
+    backgroundColor: Colors.surface,
+    borderColor: "#E0E5E1",
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  filterButtonSelected: {
+    backgroundColor: "#EAFBF3",
+    borderColor: Colors.forestGreen,
+  },
+  filterText: { color: Colors.textSecondary, fontSize: 12, fontWeight: "600" },
+  filterTextSelected: { color: Colors.forestGreen },
+  filteredEmpty: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    padding: 20,
+    alignItems: "center",
   },
   sheet: {
     marginHorizontal: 0,

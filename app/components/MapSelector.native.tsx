@@ -9,13 +9,25 @@ export type MapCoordinate = {
   longitude: number;
 };
 
-type MapSelectorProps = {
-  selectedPoint: MapCoordinate;
-  onSelectPoint: (point: MapCoordinate) => void;
-  onMapLoadError: (message: string) => void;
+export type MapPin = MapCoordinate & {
+  id: string;
+  title: string;
+  kind: "dump" | "pickup";
 };
 
-function createMapHtml(initialPoint: MapCoordinate) {
+type MapSelectorProps = {
+  selectedPoint?: MapCoordinate;
+  markers?: MapPin[];
+  onSelectPoint?: (point: MapCoordinate) => void;
+  onMapLoadError?: (message: string) => void;
+};
+
+function createMapHtml(
+  initialPoint: MapCoordinate,
+  markers: MapPin[],
+  selectable: boolean,
+) {
+  const safeMarkers = JSON.stringify(markers).replace(/</g, "\\u003c");
   return `<!doctype html>
 <html>
   <head>
@@ -31,6 +43,8 @@ function createMapHtml(initialPoint: MapCoordinate) {
     <div id="map"></div>
     <script>
       const initialPoint = [${initialPoint.latitude}, ${initialPoint.longitude}];
+      const submissionPins = ${safeMarkers};
+      const selectable = ${selectable};
       window.onerror = function (message) {
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: String(message) }));
       };
@@ -41,19 +55,40 @@ function createMapHtml(initialPoint: MapCoordinate) {
       }).addTo(map).on('tileerror', function () {
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'tiles-error' }));
       });
-      let marker = L.marker(initialPoint).addTo(map);
-      map.on('click', function (event) {
-        const point = { latitude: event.latlng.lat, longitude: event.latlng.lng };
-        marker.setLatLng(event.latlng);
-        window.ReactNativeWebView.postMessage(JSON.stringify(point));
-      });
+      if (submissionPins.length) {
+        const bounds = [];
+        submissionPins.forEach(function (pin) {
+          const coordinate = [pin.latitude, pin.longitude];
+          bounds.push(coordinate);
+          const marker = L.circleMarker(coordinate, {
+            radius: 9,
+            color: '#ffffff',
+            weight: 3,
+            fillColor: pin.kind === 'pickup' ? '#08752b' : '#e86b45',
+            fillOpacity: 1
+          }).addTo(map);
+          const popup = document.createElement('div');
+          popup.textContent = pin.title;
+          marker.bindPopup(popup);
+        });
+        if (bounds.length > 1) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 15 });
+        else map.setView(bounds[0], 15);
+      } else if (selectable) {
+        let marker = L.marker(initialPoint).addTo(map);
+        map.on('click', function (event) {
+          const point = { latitude: event.latlng.lat, longitude: event.latlng.lng };
+          marker.setLatLng(event.latlng);
+          window.ReactNativeWebView.postMessage(JSON.stringify(point));
+        });
+      }
     </script>
   </body>
 </html>`;
 }
 
 export default function MapSelector({
-  selectedPoint,
+  selectedPoint = { latitude: 6.9271, longitude: 79.8612 },
+  markers = [],
   onSelectPoint,
   onMapLoadError,
 }: MapSelectorProps) {
@@ -67,11 +102,12 @@ export default function MapSelector({
         | MapCoordinate
         | { type: "error" | "tiles-error"; message?: string };
       if ("type" in message) {
-        onMapLoadError(message.message ?? "Map tiles could not be loaded.");
+        onMapLoadError?.(message.message ?? "Map tiles could not be loaded.");
         return;
       }
       const point = message;
       if (
+        onSelectPoint &&
         Number.isFinite(point.latitude) &&
         Number.isFinite(point.longitude)
       ) {
@@ -87,16 +123,16 @@ export default function MapSelector({
       <WebView
         javaScriptEnabled
         onError={(event: WebViewErrorEvent) =>
-          onMapLoadError(event.nativeEvent.description)
+          onMapLoadError?.(event.nativeEvent.description)
         }
         onLoadSubResourceError={(event: WebViewErrorEvent) =>
-          onMapLoadError(event.nativeEvent.description)
+          onMapLoadError?.(event.nativeEvent.description)
         }
         onMessage={handleMessage}
         originWhitelist={["*"]}
         scrollEnabled={false}
         source={{
-          html: createMapHtml(selectedPoint),
+          html: createMapHtml(selectedPoint, markers, Boolean(onSelectPoint)),
           baseUrl: "https://eco-connect.local/",
         }}
         style={styles.webView}

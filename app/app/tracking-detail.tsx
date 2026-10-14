@@ -90,7 +90,9 @@ export default function TrackingDetailScreen() {
     };
   }, [loadRequest]);
 
-  const activeStep = request ? STATUS_STEPS.indexOf(request.status) : -1;
+  const activeStep = request
+    ? STATUS_STEPS.indexOf(request.status)
+    : -1;
 
   return (
     <View style={styles.screen}>
