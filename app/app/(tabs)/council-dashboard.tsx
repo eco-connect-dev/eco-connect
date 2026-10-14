@@ -219,14 +219,20 @@ export default function CouncilDashboardScreen() {
         <View style={styles.residentReports}>
           <Text style={styles.residentReportsTitle}>Community Posts</Text>
           {postError ? <Text style={styles.reportError}>{postError}</Text> : posts.length ? posts.slice(0, 5).map((post) => (
-            <View key={post.id} style={styles.residentReportCard}>
+            <Pressable
+              key={post.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Open post by ${post.author_name}`}
+              onPress={() => router.push({ pathname: "/council-community-post-detail", params: { id: post.id } })}
+              style={styles.residentReportCard}
+            >
               {post.image_url ? <Image source={{ uri: post.image_url }} style={styles.communityPostImage} /> : null}
               <View style={styles.residentReportCopy}>
                 <Text style={styles.residentReportName} numberOfLines={1}>{post.author_name} · {post.location}</Text>
                 {!!post.description && <Text style={styles.residentReportArea} numberOfLines={2}>{post.description}</Text>}
                 <Text style={styles.residentReportArea}>{getPostTimeLabel(post.created_at)}</Text>
               </View>
-            </View>
+            </Pressable>
           )) : <Text style={styles.reportEmpty}>No community posts yet.</Text>}
         </View>
 
