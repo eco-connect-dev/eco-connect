@@ -118,7 +118,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="profile"
           options={{
-            href: role === "council" || role === "admin" ? null : undefined,
+            href: role === "council" || role === "admin" || role === "driver" ? null : undefined,
             title: "Profile",
             tabBarIcon: ({ focused, color }) => (
               <Ionicons
@@ -155,6 +155,23 @@ export default function TabLayout() {
                   tabBarIcon: ({ focused, color }) => (
                     <Ionicons
                       name={focused ? "grid" : "grid-outline"}
+                      size={22}
+                      color={color}
+                    />
+                  ),
+                }
+              : { href: null }
+          }
+        />
+        <Tabs.Screen
+          name="driver-dashboard"
+          options={
+            role === "driver"
+              ? {
+                  title: "Driver Dashboard",
+                  tabBarIcon: ({ focused, color }) => (
+                    <Ionicons
+                      name={focused ? "navigate" : "navigate-outline"}
                       size={22}
                       color={color}
                     />

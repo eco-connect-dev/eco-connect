@@ -94,6 +94,81 @@ export async function listCouncilRequests(): Promise<TrackedRequest[]> {
   );
 }
 
+/** Requests dispatched by council and waiting for a driver to complete them. */
+export async function listAssignedDriverTasks(): Promise<TrackedRequest[]> {
+  const [dumpingResult, pickupResult] = await Promise.all([
+    supabase
+      .from("dumping_reports")
+      .select("id, reporter_id, category, status, submitted_at, location, notes, image_url")
+      .eq("status", "assigned")
+      .order("submitted_at", { ascending: true }),
+    supabase
+      .from("pickup_requests")
+      .select("id, resident_id, category, status, submitted_at, location, notes, image_url")
+      .eq("status", "assigned")
+      .order("submitted_at", { ascending: true }),
+  ]);
+
+  if (dumpingResult.error) throw dumpingResult.error;
+  if (pickupResult.error) throw pickupResult.error;
+
+  const dumping = ((dumpingResult.data ?? []) as RawRequest[]).map((row) => ({
+    ...row,
+    source: "dumping_reports" as const,
+    reporter_id: row.reporter_id ?? "",
+  }));
+  const pickups = ((pickupResult.data ?? []) as RawRequest[]).map((row) => ({
+    ...row,
+    source: "pickup_requests" as const,
+    reporter_id: row.resident_id ?? "",
+  }));
+
+  return [...dumping, ...pickups].sort(
+    (a, b) => new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime(),
+  );
+}
+
+/** A driver can only complete a task that is still assigned. RLS enforces this too. */
+export async function resolveDriverTask(
+  source: TrackingSource,
+  id: string,
+): Promise<TrackedRequest> {
+  const isPickup = source === "pickup_requests";
+  const { data, error } = await supabase
+    .from(source)
+    .update({ status: "resolved" })
+    .eq("id", id)
+    .eq("status", "assigned")
+    .select(
+      isPickup
+        ? "id, resident_id, category, status, submitted_at, location, notes, image_url"
+        : "id, reporter_id, category, status, submitted_at, location, notes, image_url",
+    )
+    .single();
+
+  if (error) throw error;
+  const row = data as unknown as RawRequest;
+  return {
+    ...row,
+    source,
+    reporter_id: isPickup ? (row.resident_id ?? "") : (row.reporter_id ?? ""),
+  };
+}
+
+export function subscribeToDriverTasks(onChange: () => void) {
+  return supabase
+    .channel("driver-assigned-tasks")
+    .on("postgres_changes", { event: "*", schema: "public", table: "dumping_reports" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "pickup_requests" }, onChange)
+    .subscribe();
+}
+
+export async function removeDriverTasksSubscription(
+  channel: ReturnType<typeof subscribeToDriverTasks>,
+) {
+  await supabase.removeChannel(channel);
+}
+
 export async function getCouncilRequest(
   source: TrackingSource,
   id: string,
