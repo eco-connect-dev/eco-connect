@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { geocodeAsync } from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
+import MapSelector from "@/components/MapSelector";
 
 import ItemDetailPickupScreen from "@/app/item-detail-pickup";
 import { getCouncilRequest, updateCouncilRequestStatus } from "@/lib/tracking";
@@ -7,6 +9,7 @@ import { mockViewMeasureInWindow } from "@/test-utils/mockViewMeasure";
 
 const mockGetCouncilRequest = getCouncilRequest as jest.Mock;
 const mockUpdateStatus = updateCouncilRequestStatus as jest.Mock;
+const mockMapSelector = MapSelector as jest.Mock;
 
 jest.mock("expo-router", () => ({
   router: { replace: jest.fn(), back: jest.fn() },
@@ -15,6 +18,8 @@ jest.mock("expo-router", () => ({
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock("@/lib/tracking", () => ({ getCouncilRequest: jest.fn(), updateCouncilRequestStatus: jest.fn() }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
+jest.mock("expo-location", () => ({ geocodeAsync: jest.fn(async () => [{ latitude: 6.91, longitude: 79.87 }]) }));
+jest.mock("@/components/MapSelector", () => ({ __esModule: true, default: jest.fn(() => null) }));
 
 const pickup = {
   id: "pickup-1", source: "pickup_requests", reporter_id: "resident-1", category: "Recyclable",
@@ -35,10 +40,14 @@ describe("ItemDetailPickupScreen", () => {
     await render(<ItemDetailPickupScreen />);
 
     expect(await screen.findByText("Recyclable pickup")).toBeTruthy();
-    expect(screen.getAllByText("42 Ward Place, Colombo")).toHaveLength(2);
+    expect(screen.getAllByText("42 Ward Place, Colombo")).toHaveLength(1);
     expect(screen.getByText("Cardboard boxes")).toBeTruthy();
     expect(screen.getAllByText("PENDING")).toHaveLength(2);
     expect(mockGetCouncilRequest).toHaveBeenCalledWith("pickup_requests", "pickup-1");
+    await waitFor(() => {
+      expect(geocodeAsync).toHaveBeenCalledWith("42 Ward Place, Colombo, Sri Lanka");
+      expect(mockMapSelector.mock.calls.some(([props]) => props.markers?.[0]?.kind === "pickup")).toBe(true);
+    });
   });
 
   it("persists a changed status then returns to the council dashboard", async () => {
