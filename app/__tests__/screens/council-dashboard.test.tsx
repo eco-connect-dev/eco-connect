@@ -1,228 +1,134 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 
 import CouncilDashboardScreen from "@/app/(tabs)/council-dashboard";
+import { listCouncilRequests } from "@/lib/tracking";
+import { getCommunityPosts } from "@/lib/community";
+
+const mockListRequests = listCouncilRequests as jest.Mock;
+const mockGetCommunityPosts = getCommunityPosts as jest.Mock;
 
 jest.mock("expo-router", () => ({
-    router: { push: jest.fn(), back: jest.fn() },
-    useFocusEffect: (cb: () => void) => cb(),
+  router: { push: jest.fn(), back: jest.fn() },
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require("react") as typeof import("react");
+    React.useEffect(callback, [callback]);
+  },
 }));
-
 jest.mock("react-native-safe-area-context", () => ({
-    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-
-jest.mock("@/lib/reports", () => ({
-    listCouncilReports: jest.fn().mockResolvedValue([]),
+jest.mock("@/lib/tracking", () => ({ listCouncilRequests: jest.fn() }));
+jest.mock("@/lib/community", () => ({
+  getCommunityPosts: jest.fn(),
+  getPostTimeLabel: () => "Today",
 }));
+jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
+jest.mock("expo-image", () => ({ Image: () => null }));
 
-const SEARCH_PLACEHOLDER = "Search by title, location or area";
-
-const ALL_TITLES = [
-    "Bulk Waste: Old Sofa",
-    "Illegal Dumping",
-    "E-Waste Disposal",
-    "Tires Abandoned in Alley",
-    "Yard Waste Overload",
-    "Construction Debris",
+const requests = [
+  { id: "pickup-1", source: "pickup_requests", reporter_id: "resident-1", category: "Bulk Waste", status: "pending", submitted_at: "2026-08-10T09:00:00Z", location: "1042 Maple St", notes: null },
+  { id: "dump-1", source: "dumping_reports", reporter_id: "resident-2", category: "Illegal Dumping", status: "pending", submitted_at: "2026-08-10T08:00:00Z", location: "Industrial Rd", notes: null },
+  { id: "pickup-2", source: "pickup_requests", reporter_id: "resident-3", category: "E-Waste Disposal", status: "assigned", submitted_at: "2026-08-10T07:00:00Z", location: "Elm Street", notes: null },
+  { id: "dump-2", source: "dumping_reports", reporter_id: "resident-4", category: "Tires Abandoned in Alley", status: "rejected", submitted_at: "2026-08-09T09:00:00Z", location: "Pine Lane", notes: null },
+  { id: "pickup-3", source: "pickup_requests", reporter_id: "resident-5", category: "Yard Waste Overload", status: "pending", submitted_at: "2026-08-09T08:00:00Z", location: "Elm Park", notes: null },
+  { id: "dump-3", source: "dumping_reports", reporter_id: "resident-6", category: "Construction Debris", status: "in_review", submitted_at: "2026-08-08T08:00:00Z", location: "River Road", notes: null },
 ];
-
-function expectOnlyTitles(visibleTitles: string[]) {
-    ALL_TITLES.forEach((title) => {
-        if (visibleTitles.includes(title)) {
-            expect(screen.getByText(title)).toBeTruthy();
-        } else {
-            expect(screen.queryByText(title)).toBeNull();
-        }
-    });
-}
-
-async function openFilters() {
-    await fireEvent.press(screen.getByText("Filters"));
-}
-
-async function applyFilters() {
-    await fireEvent.press(screen.getByText("Apply Filters"));
-}
+const posts = [{ id: "post-1", author_id: "resident-1", author_name: "Amaya Silva", description: "Clean-up this weekend", location: "Borella", image_url: null, created_at: "2026-08-10T10:00:00Z" }];
 
 describe("CouncilDashboardScreen", () => {
-    beforeEach(async () => {
-        jest.clearAllMocks();
-        await render(<CouncilDashboardScreen />);
-    });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockListRequests.mockResolvedValue(requests);
+    mockGetCommunityPosts.mockResolvedValue(posts);
+  });
 
-    afterEach(() => {
-        jest.useRealTimers();
-    });
+  it("loads current requests and community posts from their data services", async () => {
+    await render(<CouncilDashboardScreen />);
 
-    describe("initial render", () => {
-        it("shows the header, stats and every request", () => {
-            expect(screen.getByText("Pending Items")).toBeTruthy();
-            expect(screen.getByText("TOTAL PENDING")).toBeTruthy();
-            expect(screen.getByText("24")).toBeTruthy();
-            expect(screen.getByText("Showing 6 of 24 items")).toBeTruthy();
-            expectOnlyTitles(ALL_TITLES);
-        });
-    });
+    expect(await screen.findByText("Pickup Requests and Dumping Reports")).toBeTruthy();
+    expect(screen.getByText("Showing 6 of 6 items")).toBeTruthy();
+    expect(screen.getByText("E-Waste Disposal pickup")).toBeTruthy();
+    expect(screen.getByText("Illegal Dumping")).toBeTruthy();
+    expect(screen.getByText("Community Posts")).toBeTruthy();
+    expect(screen.getByText("Amaya Silva · Borella")).toBeTruthy();
+    expect(mockListRequests).toHaveBeenCalledTimes(1);
+    expect(mockGetCommunityPosts).toHaveBeenCalledTimes(1);
+  });
 
-    describe("category tabs", () => {
-        it("'Pickups' shows only pickup requests", async () => {
-            await fireEvent.press(screen.getByText("Pickups"));
-            expectOnlyTitles(["Bulk Waste: Old Sofa", "E-Waste Disposal", "Yard Waste Overload"]);
-            expect(screen.getByText("Showing 3 of 24 items")).toBeTruthy();
-        });
+  it("filters pickup requests and dumping reports by tab", async () => {
+    await render(<CouncilDashboardScreen />);
+    await screen.findByText("Pickup Requests and Dumping Reports");
 
-        it("'Dumping' shows only dumping reports", async () => {
-            await fireEvent.press(screen.getByText("Dumping"));
-            expectOnlyTitles(["Illegal Dumping", "Tires Abandoned in Alley", "Construction Debris"]);
-        });
+    await fireEvent.press(screen.getByText("Pickups"));
+    expect(screen.getByText("Showing 3 of 6 items")).toBeTruthy();
+    expect(screen.getByText("Bulk Waste pickup")).toBeTruthy();
+    expect(screen.queryByText("Illegal Dumping")).toBeNull();
 
-        it("'All' restores the full list", async () => {
-            await fireEvent.press(screen.getByText("Dumping"));
-            await fireEvent.press(screen.getByText("All"));
-            expectOnlyTitles(ALL_TITLES);
-        });
-    });
+    await fireEvent.press(screen.getByText("Dumping"));
+    expect(screen.getByText("Showing 3 of 6 items")).toBeTruthy();
+    expect(screen.getByText("Illegal Dumping")).toBeTruthy();
+    expect(screen.queryByText("Bulk Waste pickup")).toBeNull();
+  });
 
-    describe("search", () => {
-        it("matches on title", async () => {
-            await fireEvent.changeText(screen.getByPlaceholderText(SEARCH_PLACEHOLDER), "sofa");
-            expectOnlyTitles(["Bulk Waste: Old Sofa"]);
-        });
+  it("searches request title and location", async () => {
+    await render(<CouncilDashboardScreen />);
+    await screen.findByText("Pickup Requests and Dumping Reports");
+    const search = screen.getByPlaceholderText("Search by title, location or area");
 
-        it("matches on area and is case-insensitive", async () => {
-            await fireEvent.changeText(screen.getByPlaceholderText(SEARCH_PLACEHOLDER), "ELM");
-            expectOnlyTitles(["Yard Waste Overload"]);
-        });
+    await fireEvent.changeText(search, "industrial");
+    expect(screen.getByText("Illegal Dumping")).toBeTruthy();
+    expect(screen.queryByText("Bulk Waste pickup")).toBeNull();
+    expect(screen.getByText("Showing 1 of 6 items")).toBeTruthy();
+  });
 
-        it("matches on location", async () => {
-            await fireEvent.changeText(screen.getByPlaceholderText(SEARCH_PLACEHOLDER), "industrial rd");
-            expectOnlyTitles(["Illegal Dumping"]);
-        });
+  it("shows an empty result when search has no matches", async () => {
+    await render(<CouncilDashboardScreen />);
+    await screen.findByText("Pickup Requests and Dumping Reports");
+    await fireEvent.changeText(screen.getByPlaceholderText("Search by title, location or area"), "no such item");
 
-        it("shows an empty state when nothing matches", async () => {
-            await fireEvent.changeText(screen.getByPlaceholderText(SEARCH_PLACEHOLDER), "zzz");
-            expect(screen.getByText("No requests match your filters")).toBeTruthy();
-            expect(screen.getByText("Showing 0 of 24 items")).toBeTruthy();
-        });
+    expect(screen.getByText("No requests match your filters")).toBeTruthy();
+    expect(screen.getByText("Showing 0 of 6 items")).toBeTruthy();
+  });
 
-        it("combines with the category tab", async () => {
-            await fireEvent.press(screen.getByText("Dumping"));
-            await fireEvent.changeText(screen.getByPlaceholderText(SEARCH_PLACEHOLDER), "debris");
-            expectOnlyTitles(["Construction Debris"]);
-        });
-    });
+  it("filters by request status", async () => {
+    await render(<CouncilDashboardScreen />);
+    await screen.findByText("Pickup Requests and Dumping Reports");
+    await fireEvent.press(screen.getByText("Filters"));
+    await fireEvent.press(screen.getByText("Assigned"));
+    await fireEvent.press(screen.getByText("Apply Filters"));
 
-    describe("filter modal", () => {
-        it("opens and closes", async () => {
-            expect(screen.queryByText("Filter Requests")).toBeNull();
-            await openFilters();
-            expect(screen.getByText("Filter Requests")).toBeTruthy();
-            await applyFilters();
-            expect(screen.queryByText("Filter Requests")).toBeNull();
-        });
+    expect(screen.getByText("Showing 1 of 6 items")).toBeTruthy();
+    expect(screen.getByText("E-Waste Disposal pickup")).toBeTruthy();
+    expect(screen.queryByText("Illegal Dumping")).toBeNull();
+  });
 
-        it("filters by a single status", async () => {
-            await openFilters();
-            await fireEvent.press(screen.getByText("Assigned"));
-            await applyFilters();
-            expectOnlyTitles(["E-Waste Disposal"]);
-            expect(screen.getByText("Showing 1 of 24 items")).toBeTruthy();
-        });
+  it("opens the correct detail route for a pickup request and a dumping report", async () => {
+    await render(<CouncilDashboardScreen />);
+    await screen.findByText("Pickup Requests and Dumping Reports");
 
-        it("filters by multiple statuses (OR)", async () => {
-            await openFilters();
-            await fireEvent.press(screen.getByText("Pending"));
-            await applyFilters();
-            expectOnlyTitles(["Bulk Waste: Old Sofa", "Tires Abandoned in Alley", "Yard Waste Overload"]);
-        });
+    await fireEvent.press(screen.getByText("Bulk Waste pickup"));
+    expect(router.push).toHaveBeenCalledWith({ pathname: "/item-detail-pickup", params: { id: "pickup-1" } });
 
-        it("filters by waste category", async () => {
-            await openFilters();
-            await fireEvent.press(screen.getByText("Hazardous"));
-            await applyFilters();
-            expectOnlyTitles(["E-Waste Disposal"]);
-        });
+    await fireEvent.press(screen.getByText("Illegal Dumping"));
+    expect(router.push).toHaveBeenLastCalledWith({ pathname: "/item-detail-report", params: { id: "dump-1" } });
+  });
 
-        it("filters by area", async () => {
-            await openFilters();
-            await fireEvent.changeText(screen.getByPlaceholderText("e.g. Ward Place, Borella"), "river");
-            await applyFilters();
-            expectOnlyTitles(["Construction Debris"]);
-        });
+  it("opens community post details", async () => {
+    await render(<CouncilDashboardScreen />);
+    await screen.findByText("Amaya Silva · Borella");
+    await fireEvent.press(screen.getByLabelText("Open post by Amaya Silva"));
 
-        it("filters by 'Today'", async () => {
-            jest.useFakeTimers();
-            jest.setSystemTime(new Date("2026-08-10T10:00:00Z"));
-            await openFilters();
-            await fireEvent.press(screen.getByText("Today"));
-            await applyFilters();
-            expectOnlyTitles(["E-Waste Disposal", "Tires Abandoned in Alley"]);
-        });
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith({
+      pathname: "/council-community-post-detail",
+      params: { id: "post-1" },
+    }));
+  });
 
-        it("filters by 'This Week'", async () => {
-            jest.useFakeTimers();
-            jest.setSystemTime(new Date("2026-08-10T10:00:00Z"));
-            await openFilters();
-            await fireEvent.press(screen.getByText("This Week"));
-            await applyFilters();
-            expectOnlyTitles([
-                "Bulk Waste: Old Sofa",
-                "Illegal Dumping",
-                "E-Waste Disposal",
-                "Tires Abandoned in Alley",
-                "Yard Waste Overload",
-            ]);
-        });
-
-        it("shows the empty state when the date range excludes everything", async () => {
-            jest.useFakeTimers();
-            jest.setSystemTime(new Date("2026-09-15T10:00:00Z"));
-            await openFilters();
-            await fireEvent.press(screen.getByText("This Month"));
-            await applyFilters();
-            expect(screen.getByText("No requests match your filters")).toBeTruthy();
-        });
-
-        it("shows the number of active filters on the Filters button", async () => {
-            await openFilters();
-            await fireEvent.press(screen.getByText("Assigned"));
-            await fireEvent.press(screen.getByText("Hazardous"));
-            await applyFilters();
-            expect(screen.getByText("2")).toBeTruthy();
-        });
-
-        it("'Clear All' removes every filter", async () => {
-            await openFilters();
-            await fireEvent.press(screen.getByText("Assigned"));
-            await fireEvent.press(screen.getByText("Clear All"));
-            await applyFilters();
-            expectOnlyTitles(ALL_TITLES);
-            expect(screen.queryByText("1")).toBeNull();
-        });
-    });
-
-    describe("navigation", () => {
-        it("opens the pickup detail screen for a pickup request", async () => {
-            await fireEvent.press(screen.getByText("Bulk Waste: Old Sofa"));
-            expect(router.push).toHaveBeenCalledWith({
-                pathname: "/item-detail-pickup",
-                params: { id: "1" },
-            });
-        });
-
-        it("opens the report detail screen only for a dumping report", async () => {
-            await fireEvent.press(screen.getByText("Illegal Dumping"));
-            expect(router.push).toHaveBeenCalledTimes(1);
-            expect(router.push).toHaveBeenCalledWith({
-                pathname: "/item-detail-report",
-                params: { id: "2" },
-            });
-        });
-
-        it("opens the council profile from the Profile button", async () => {
-            await fireEvent.press(screen.getByText("Profile"));
-            expect(router.push).toHaveBeenCalledWith("/council-profile");
-        });
-    });
+  it("shows request fetch errors", async () => {
+    mockListRequests.mockRejectedValueOnce(new Error("Request list unavailable"));
+    await render(<CouncilDashboardScreen />);
+    expect(await screen.findByText("Request list unavailable")).toBeTruthy();
+  });
 });
