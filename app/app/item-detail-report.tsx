@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { StatusDropdown } from "@/components/council/StatusDropdown";
 import { ItemStatus, StatusBadge } from "@/components/council/StatusBadge";
+import { RequestLocationMap } from "@/components/council/RequestLocationMap";
 import { Colors } from "@/constants/Colors";
 import { getCouncilRequest, TrackedRequest, updateCouncilRequestStatus } from "@/lib/tracking";
 
@@ -103,12 +104,7 @@ export default function ItemDetailReportScreen() {
                 <View style={styles.locationSection}>
                     <Text style={styles.sectionLabel}>Reported Location</Text>
                     <Text style={styles.locationAddress}>{report?.location ?? "Loading location…"}</Text>
-                    <View style={styles.mapPlaceholder}>
-                        <View style={styles.mapLabelPill}>
-                            <Ionicons name="location" size={14} color={Colors.councilTextPrimary} />
-                            <Text style={styles.mapLabelText}>{report?.location ?? "Reported location"}</Text>
-                        </View>
-                    </View>
+                    {report?.location ? <RequestLocationMap location={report.location} kind="dump" /> : null}
                 </View>
 
                 {/* Description */}
@@ -232,28 +228,6 @@ const styles = StyleSheet.create({
     locationAddress: {
         fontSize: 14,
         fontWeight: "700",
-        color: Colors.councilTextPrimary,
-    },
-    mapPlaceholder: {
-        height: 120,
-        borderRadius: 6,
-        backgroundColor: Colors.detailMapBg,
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
-    },
-    mapLabelPill: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: Colors.detailMapOverlayBg,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 4,
-    },
-    mapLabelText: {
-        fontSize: 11,
-        fontWeight: "600",
         color: Colors.councilTextPrimary,
     },
     descriptionSection: {
