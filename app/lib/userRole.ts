@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 
-export type AppRole = "user" | "council" | "admin";
+export type AppRole = "user" | "council" | "admin" | "driver";
 
 export function dashboardForRole(role: AppRole) {
   switch (role) {
@@ -8,6 +8,8 @@ export function dashboardForRole(role: AppRole) {
       return "/(tabs)/council-dashboard" as const;
     case "admin":
       return "/(tabs)/admin-dashboard" as const;
+    case "driver":
+      return "/(tabs)/driver-dashboard" as const;
     default:
       return "/(tabs)/home" as const;
   }
@@ -21,6 +23,10 @@ export async function readUserRole(userId: string): Promise<AppRole> {
     .maybeSingle();
 
   if (error) throw error;
-  if (data?.role === "council" || data?.role === "admin") return data.role;
+  if (
+    data?.role === "council" ||
+    data?.role === "admin" ||
+    data?.role === "driver"
+  ) return data.role;
   return "user";
 }

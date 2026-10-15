@@ -1,4 +1,4 @@
-import { Redirect } from "expo-router";
+import { Redirect, type Href } from "expo-router";
 import { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
@@ -103,7 +103,7 @@ export default function IndexScreen() {
         </View>
       );
     }
-    if (role) return <Redirect href={dashboardForRole(role)} />;
+    if (role) return <Redirect href={dashboardForRole(role) as Href} />;
   }
 
   return <Redirect href="./login" />;
