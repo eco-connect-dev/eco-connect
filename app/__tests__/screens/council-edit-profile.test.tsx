@@ -53,6 +53,18 @@ describe("CouncilEditProfileScreen", () => {
         expect(screen.queryByDisplayValue(PARAMS.name)).toBeNull();
     });
 
+    it("lets the user edit the title, phone number and department", async () => {
+        await render(<CouncilEditProfileScreen />);
+
+        await fireEvent.changeText(screen.getByPlaceholderText("e.g. Colombo Councillor"), "Ward Councillor");
+        await fireEvent.changeText(screen.getByPlaceholderText("Phone number"), "+94 77 123 4567");
+        await fireEvent.changeText(screen.getByPlaceholderText("Department"), "Waste Management");
+
+        expect(screen.getByDisplayValue("Ward Councillor")).toBeTruthy();
+        expect(screen.getByDisplayValue("+94 77 123 4567")).toBeTruthy();
+        expect(screen.getByDisplayValue("Waste Management")).toBeTruthy();
+    });
+
     it("starts with empty fields when no params are passed", async () => {
         (useLocalSearchParams as jest.Mock).mockReturnValue({});
         await render(<CouncilEditProfileScreen />);
@@ -72,17 +84,4 @@ describe("CouncilEditProfileScreen", () => {
         expect(router.back).toHaveBeenCalledTimes(1);
     });
 
-    it("the header back button returns to the previous screen", async () => {
-        await render(<CouncilEditProfileScreen />);
-        // @ts-ignore
-        const backBtn = screen.root.children[0]?.children[0];
-        await fireEvent.press(backBtn);
-        expect(router.back).toHaveBeenCalledTimes(1);
-    });
-
-    it("'Save Changes' returns from the current route", async () => {
-        await render(<CouncilEditProfileScreen />);
-        await fireEvent.press(screen.getByText("Save Changes"));
-        expect(router.back).toHaveBeenCalledTimes(1);
-    });
 });

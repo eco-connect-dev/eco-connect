@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { geocodeAsync } from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
+import MapSelector from "@/components/MapSelector";
 
 import ItemDetailReportScreen from "@/app/item-detail-report";
 import { getCouncilRequest, updateCouncilRequestStatus } from "@/lib/tracking";
@@ -7,6 +9,7 @@ import { mockViewMeasureInWindow } from "@/test-utils/mockViewMeasure";
 
 const mockGetCouncilRequest = getCouncilRequest as jest.Mock;
 const mockUpdateStatus = updateCouncilRequestStatus as jest.Mock;
+const mockMapSelector = MapSelector as jest.Mock;
 
 jest.mock("expo-router", () => ({
   router: { replace: jest.fn(), back: jest.fn() },
@@ -16,6 +19,8 @@ jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({
 jest.mock("@/lib/tracking", () => ({ getCouncilRequest: jest.fn(), updateCouncilRequestStatus: jest.fn() }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 jest.mock("expo-image", () => ({ Image: () => null }));
+jest.mock("expo-location", () => ({ geocodeAsync: jest.fn(async () => [{ latitude: 6.91, longitude: 79.87 }]) }));
+jest.mock("@/components/MapSelector", () => ({ __esModule: true, default: jest.fn(() => null) }));
 
 const report = {
   id: "dump-1", source: "dumping_reports", reporter_id: "resident-1", category: "Illegal dumping",
@@ -36,10 +41,14 @@ describe("ItemDetailReportScreen", () => {
     await render(<ItemDetailReportScreen />);
 
     expect(await screen.findAllByText("Illegal dumping")).toHaveLength(2);
-    expect(screen.getAllByText("450 Industrial Road, Colombo")).toHaveLength(2);
+    expect(screen.getAllByText("450 Industrial Road, Colombo")).toHaveLength(1);
     expect(screen.getByText("Construction debris near the road")).toBeTruthy();
     expect(screen.getAllByText("UNDER REVIEW")).toHaveLength(2);
     expect(mockGetCouncilRequest).toHaveBeenCalledWith("dumping_reports", "dump-1");
+    await waitFor(() => {
+      expect(geocodeAsync).toHaveBeenCalledWith("450 Industrial Road, Colombo, Sri Lanka");
+      expect(mockMapSelector.mock.calls.some(([props]) => props.markers?.[0]?.kind === "dump")).toBe(true);
+    });
   });
 
   it("saves the selected assigned status then returns to the council dashboard", async () => {
