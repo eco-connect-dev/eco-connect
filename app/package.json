@@ -59,7 +59,13 @@
     "format:write": "prettier . --write",
     "test": "jest",
     "_comment": "Example: pnpm test:page __tests__/request.test.tsx",
-    "test:page": "jest --runInBand"
+    "test:page": "jest --runInBand",
+    "prebuild:android": "expo prebuild --platform android --clean",
+    "build:android:apk": "eas build --platform android --profile preview",
+    "build:android:aab": "eas build --platform android --profile production",
+    "build:android:dev": "eas build --platform android --profile development",
+    "build:android:local:apk": "npm run prebuild:android && cd android && ./gradlew assembleRelease",
+    "build:android:local:aab": "npm run prebuild:android && cd android && ./gradlew bundleRelease"
   },
   "private": true
 }
