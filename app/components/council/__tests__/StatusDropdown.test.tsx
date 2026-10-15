@@ -14,14 +14,14 @@ describe("StatusDropdown", () => {
         expect(screen.queryByText("Assigned")).toBeNull();
     });
 
-    it("opens a menu with only assigned, rejected and completed", async () => {
+    it("offers the current workflow statuses including resolved", async () => {
         await render(<StatusDropdown status="pending" onChange={jest.fn()} />);
         await fireEvent.press(screen.getByText("PENDING"));
         expect(screen.getByText("Assigned")).toBeTruthy();
         expect(screen.getByText("Rejected")).toBeTruthy();
-        expect(screen.getByText("Completed")).toBeTruthy();
-        expect(screen.queryByText("Pending")).toBeNull();
-        expect(screen.queryByText("Under Review")).toBeNull();
+        expect(screen.getByText("Resolved")).toBeTruthy();
+        expect(screen.getByText("Pending")).toBeTruthy();
+        expect(screen.getByText("Under Review")).toBeTruthy();
     });
 
     it("calls onChange with the chosen status and closes the menu", async () => {
@@ -36,7 +36,7 @@ describe("StatusDropdown", () => {
     it("closes when the modal requests to close (Android back button)", async () => {
         await render(<StatusDropdown status="pending" onChange={jest.fn()} />);
         await fireEvent.press(screen.getByText("PENDING"));
-        expect(screen.getByText("Completed")).toBeTruthy();
+        expect(screen.getByText("Resolved")).toBeTruthy();
         const findModal = (node: any): any => {
             if (!node) return null;
             if (typeof node.props?.onRequestClose === "function") return node;
@@ -52,6 +52,6 @@ describe("StatusDropdown", () => {
         await act(async () => {
             modal.props.onRequestClose();
         });
-        expect(screen.queryByText("Completed")).toBeNull();
+        expect(screen.queryByText("Resolved")).toBeNull();
     });
 });

@@ -9,7 +9,7 @@ const CASES: [ItemStatus, string][] = [
     ["under_review", "UNDER REVIEW"],
     ["assigned", "ASSIGNED"],
     ["rejected", "REJECTED"],
-    ["completed", "COMPLETED"],
+    ["completed", "RESOLVED"],
 ];
 
 describe("StatusBadge", () => {

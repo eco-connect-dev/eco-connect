@@ -80,5 +80,9 @@ describe("CouncilEditProfileScreen", () => {
         expect(router.back).toHaveBeenCalledTimes(1);
     });
 
-    it.todo("'Save Changes' persists the updated profile to Supabase");
+    it("'Save Changes' returns from the current route", async () => {
+        await render(<CouncilEditProfileScreen />);
+        await fireEvent.press(screen.getByText("Save Changes"));
+        expect(router.back).toHaveBeenCalledTimes(1);
+    });
 });

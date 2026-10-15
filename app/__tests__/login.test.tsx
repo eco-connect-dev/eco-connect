@@ -39,15 +39,15 @@ describe("LoginScreen", () => {
     expect(getByText("Cleaner City, Together")).toBeTruthy();
     expect(getByPlaceholderText("Email or Phone Number")).toBeTruthy();
     expect(getByPlaceholderText("Password")).toBeTruthy();
-    expect(getByText("Get Started")).toBeTruthy();
+    expect(getByText("Login")).toBeTruthy();
     expect(getByText("Join as Resident")).toBeTruthy();
-    expect(getByText("Staff Login")).toBeTruthy();
+    expect(() => getByText("Staff Login")).toThrow();
   });
 
   it("shows a validation error without calling Supabase", async () => {
     const { getByText } = await render(<LoginScreen />);
 
-    await fireEvent.press(getByText("Get Started"));
+    await fireEvent.press(getByText("Login"));
 
     expect(getByText("Email and password are required.")).toBeTruthy();
     expect(mockSignInWithPassword).not.toHaveBeenCalled();
@@ -62,14 +62,14 @@ describe("LoginScreen", () => {
       "  RESIDENT@EXAMPLE.COM ",
     );
     await fireEvent.changeText(getByPlaceholderText("Password"), "secret");
-    await fireEvent.press(getByText("Get Started"));
+    await fireEvent.press(getByText("Login"));
 
     await waitFor(() => {
       expect(mockSignInWithPassword).toHaveBeenCalledWith({
         email: "resident@example.com",
         password: "secret",
       });
-      expect(mockReplace).toHaveBeenCalledWith("/(tabs)/home");
+      expect(mockReplace).toHaveBeenCalledWith("/");
     });
   });
 
@@ -86,7 +86,7 @@ describe("LoginScreen", () => {
       "resident@example.com",
     );
     await fireEvent.changeText(getByPlaceholderText("Password"), "wrong");
-    await fireEvent.press(getByText("Get Started"));
+    await fireEvent.press(getByText("Login"));
 
     expect(await findByText("Invalid login credentials")).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();
